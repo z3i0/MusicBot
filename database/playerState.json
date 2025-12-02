@@ -31,7 +31,7 @@
             "autoplay": false,
             "paused": false,
             "pauseReasons": [],
-            "playbackPositionMs": 218720,
+            "playbackPositionMs": 248720,
             "currentTrackStartOffsetMs": 24980,
             "lastPlaybackPosition": 24980,
             "requesterId": "671656203310596096",
@@ -42,7 +42,7 @@
                 "D:\\Workspace\\discord.JS\\MusicBot\\audio_cache\\track_7569d0fe9d73a955f9089ddb00990948.opus"
             ],
             "currentDownloadedFile": "D:\\Workspace\\discord.JS\\MusicBot\\audio_cache\\track_7569d0fe9d73a955f9089ddb00990948.opus",
-            "updatedAt": 1764712112923,
+            "updatedAt": 1764712142926,
             "reason": "interval"
         }
     }
