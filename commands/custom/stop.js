@@ -5,7 +5,7 @@ const chalk = require("chalk");
 
 module.exports = {
     name: "stop",
-    aliases: ["end", "halt"],
+    aliases: ["end", "halt", "وقف", "إيقاف"],
     description: "Stops playback and clears the queue, but stays connected.",
     async execute(message, args, client) {
         try {
