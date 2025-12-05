@@ -5,9 +5,9 @@ const {
   Events,
   ActivityType,
 } = require("discord.js");
-const PlayerStateManager = require('./src/PlayerStateManager');
-const MusicPlayer = require('./src/MusicPlayer');
-const fsPromises = require('fs').promises;
+const PlayerStateManager = require("./src/PlayerStateManager");
+const MusicPlayer = require("./src/MusicPlayer");
+const fsPromises = require("fs").promises;
 
 const path = require("path");
 const fs = require("fs");
@@ -31,37 +31,43 @@ module.exports = async function runSingleBot(botRow) {
   });
 
   async function cleanupAudioCache() {
-      const cacheDir = path.join(__dirname, 'audio_cache');
-  
-      try {
-          if (fs.existsSync(cacheDir)) {
-              const files = await fsPromises.readdir(cacheDir);
-              const protectedFiles = PlayerStateManager.getProtectedCacheFiles();
-  
-              let deletedCount = 0;
-              let skippedCount = 0;
-  
-              for (const file of files) {
-                  const absolutePath = path.join(cacheDir, file);
-  
-                  if (protectedFiles.has(path.resolve(absolutePath))) {
-                      skippedCount++;
-                      continue;
-                  }
-  
-                  try {
-                      await fsPromises.unlink(absolutePath);
-                      deletedCount++;
-                  } catch (err) {
-                      console.error(chalk.red(`❌ Failed to delete ${file}:`), err.message);
-                  }
-              }
-          } else {
-              fs.mkdirSync(cacheDir, { recursive: true });
+    const cacheDir = path.join(__dirname, "audio_cache");
+
+    try {
+      if (fs.existsSync(cacheDir)) {
+        const files = await fsPromises.readdir(cacheDir);
+        const protectedFiles = PlayerStateManager.getProtectedCacheFiles();
+
+        let deletedCount = 0;
+        let skippedCount = 0;
+
+        for (const file of files) {
+          const absolutePath = path.join(cacheDir, file);
+
+          if (protectedFiles.has(path.resolve(absolutePath))) {
+            skippedCount++;
+            continue;
           }
-      } catch (error) {
-          console.error(chalk.red('❌ Failed to cleanup audio cache:'), error.message);
+
+          try {
+            await fsPromises.unlink(absolutePath);
+            deletedCount++;
+          } catch (err) {
+            console.error(
+              chalk.red(`❌ Failed to delete ${file}:`),
+              err.message
+            );
+          }
+        }
+      } else {
+        fs.mkdirSync(cacheDir, { recursive: true });
       }
+    } catch (error) {
+      console.error(
+        chalk.red("❌ Failed to cleanup audio cache:"),
+        error.message
+      );
+    }
   }
 
   async function restoreSavedPlayers(client) {
@@ -328,9 +334,6 @@ module.exports = async function runSingleBot(botRow) {
       chalk.green(`🤖 ${client.user.tag} online (bot: ${client.config.slug})`)
     );
 
-    // Add restore function to client for shard manager to call
-    await client.restoreSessions();
-
     // auto join if settings provided (expect IDs as strings)
     const settings = botRow.settings || {};
     if (settings.auto_join_guild && settings.auto_join_channel) {
@@ -376,6 +379,9 @@ module.exports = async function runSingleBot(botRow) {
     } catch (e) {
       console.log(chalk.yellow("⚠ Unable to set activity:"), e.message);
     }
+
+    // Add restore function to client for shard manager to call
+    // await client.restoreSessions();
   });
 
   // attempt login and handle possible login errors
