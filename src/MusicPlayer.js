@@ -614,10 +614,11 @@ class MusicPlayer {
 
                 await youtubedl(downloadUrl, {
                     output: filepath,
-                    format: 'bestaudio',
+                    format: 'bestaudio ',
                     noCheckCertificates: true,
                     noWarnings: true,
                     preferFreeFormats: true,
+                    cookies: config.ytdl.cookiesFile,
                     addHeader: [
                         'referer:youtube.com',
                         'user-agent:Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
@@ -1785,6 +1786,7 @@ class MusicPlayer {
     }
 
     async handleError(error) {
+        console.error('❌ Playback error:', error.message);
 
         // Try to skip to next track on error
         if (this.queue.length > 0) {
