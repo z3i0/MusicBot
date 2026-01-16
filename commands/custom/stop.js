@@ -37,11 +37,11 @@ module.exports = {
             const queueLength = player.queue.length;
             const currentTrack = player.currentTrack;
 
-            // ✅ Just clear queue and stop playback (without leaving)
-            player.queue = [];
-            player.currentTrack = null;
-            if (player.audioPlayer && player.audioPlayer.stop) {
-                player.audioPlayer.stop(true); // stop current track but keep connection alive
+            // ✅ Centralized stop logic (handles file cleanup, queue clearing, state persist)
+            try {
+                player.stop();
+            } catch (e) {
+                console.error("STOP ERROR:", e);
             }
 
             // keep the connection active
@@ -59,11 +59,10 @@ module.exports = {
                     ).catch(() => null)) || "🛑 Music Stopped"
                 )
                 .setDescription(
-                    `${currentTrack ? `**[${currentTrack.title}](${currentTrack.url})**` : "Music"} ${
-                        (await LanguageManager.getTranslation(
-                            guild.id,
-                            "buttonhandler.stopped"
-                        ).catch(() => null)) || "has been stopped!"
+                    `${currentTrack ? `**[${currentTrack.title}](${currentTrack.url})**` : "Music"} ${(await LanguageManager.getTranslation(
+                        guild.id,
+                        "buttonhandler.stopped"
+                    ).catch(() => null)) || "has been stopped!"
                     }`
                 )
                 .setColor(config.bot.embedColor || "#FF0000")
