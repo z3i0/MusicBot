@@ -143,7 +143,7 @@ module.exports = {
             ),
             flags: [1 << 6],
           });
-        } catch (replyError) {}
+        } catch (replyError) { }
       }
     }
   },
@@ -163,6 +163,12 @@ module.exports = {
 
     // Music starter check
     if (member.id === requesterId) return true;
+
+    // Everyone in the same voice channel check
+    // Since we already checked if they are in the same VC at the beginning of the handler,
+    // we can just return true here if the user wanted to allow everyone in the VC.
+    // Given the user request, we will authorize anyone in the same voice channel.
+    if (member.voice.channelId === interaction.guild.members.me.voice.channelId) return true;
 
     return false;
   },
@@ -295,8 +301,7 @@ module.exports = {
           )
         )
         .setDescription(
-          `**[${currentTrack.title}](${
-            currentTrack.url
+          `**[${currentTrack.title}](${currentTrack.url
           })** ${await LanguageManager.getTranslation(
             interaction.guild?.id,
             "buttonhandler.skipped"
@@ -409,21 +414,12 @@ module.exports = {
     const queueLength = player.queue.length;
     const currentTrack = player.currentTrack;
 
-    // 1) Stop audio ONLY - do NOT destroy the connection
+    // ✅ Centralized stop logic (handles file cleanup, queue clearing, state persist)
     try {
-      if (player.audioPlayer) {
-        player.audioPlayer.stop(true); // stop playback
-      }
+      player.stop();
     } catch (e) {
       console.error("STOP ERROR:", e);
     }
-
-    // 2) Clear queue but keep the player active in memory
-    player.queue = [];
-    player.previousTracks = [];
-    player.currentTrack = null;
-    player.loop = false;
-    player.autoplay = false;
 
     // KEEP connection (so bot stays in VC)
     // DO NOT delete from players map
@@ -437,10 +433,9 @@ module.exports = {
         )
       )
       .setDescription(
-        `${
-          currentTrack
-            ? `**[${currentTrack.title}](${currentTrack.url})**`
-            : "Music"
+        `${currentTrack
+          ? `**[${currentTrack.title}](${currentTrack.url})**`
+          : "Music"
         } ${await LanguageManager.getTranslation(
           guildId,
           "buttonhandler.stopped"
@@ -781,10 +776,10 @@ module.exports = {
       const embed = new EmbedBuilder()
         .setTitle(
           "🎲 " +
-            (await LanguageManager.getTranslation(
-              interaction.guild?.id,
-              "buttonhandler.autoplay_disabled"
-            ))
+          (await LanguageManager.getTranslation(
+            interaction.guild?.id,
+            "buttonhandler.autoplay_disabled"
+          ))
         )
         .setDescription(
           await LanguageManager.getTranslation(
@@ -958,10 +953,10 @@ module.exports = {
     const embed = new EmbedBuilder()
       .setTitle(
         "🎲 " +
-          (await LanguageManager.getTranslation(
-            interaction.guild?.id,
-            "buttonhandler.autoplay_select_title"
-          ))
+        (await LanguageManager.getTranslation(
+          interaction.guild?.id,
+          "buttonhandler.autoplay_select_title"
+        ))
       )
       .setDescription(
         await LanguageManager.getTranslation(
@@ -1358,10 +1353,10 @@ module.exports = {
     const processingEmbed = new EmbedBuilder()
       .setTitle(
         "🔄 " +
-          (await LanguageManager.getTranslation(
-            guild?.id,
-            "buttonhandler.processing"
-          ))
+        (await LanguageManager.getTranslation(
+          guild?.id,
+          "buttonhandler.processing"
+        ))
       )
       .setDescription(
         await LanguageManager.getTranslation(
@@ -1421,10 +1416,10 @@ module.exports = {
         const errorEmbed = new EmbedBuilder()
           .setTitle(
             "❌ " +
-              (await LanguageManager.getTranslation(
-                guild?.id,
-                "buttonhandler.error_title"
-              ))
+            (await LanguageManager.getTranslation(
+              guild?.id,
+              "buttonhandler.error_title"
+            ))
           )
           .setDescription(result.message)
           .setColor("#FF0000")
@@ -1439,10 +1434,10 @@ module.exports = {
       const errorEmbed = new EmbedBuilder()
         .setTitle(
           "❌ " +
-            (await LanguageManager.getTranslation(
-              guild?.id,
-              "buttonhandler.error_title"
-            ))
+          (await LanguageManager.getTranslation(
+            guild?.id,
+            "buttonhandler.error_title"
+          ))
         )
         .setDescription(
           await LanguageManager.getTranslation(
@@ -1513,10 +1508,9 @@ module.exports = {
         const embed = new EmbedBuilder()
           .setTitle(`🎤 ${lyricsTitle}`)
           .setDescription(
-            `**${player.currentTrack.title}**\n${
-              player.currentTrack.artist
-                ? `*by ${player.currentTrack.artist}*\n`
-                : ""
+            `**${player.currentTrack.title}**\n${player.currentTrack.artist
+              ? `*by ${player.currentTrack.artist}*\n`
+              : ""
             }\n${pages[0]}`
           )
           .setColor(config.bot.embedColor)
@@ -1533,17 +1527,15 @@ module.exports = {
         return new EmbedBuilder()
           .setTitle(`🎤 ${lyricsTitle}`)
           .setDescription(
-            `**${player.currentTrack.title}**\n${
-              player.currentTrack.artist
-                ? `*by ${player.currentTrack.artist}*\n`
-                : ""
+            `**${player.currentTrack.title}**\n${player.currentTrack.artist
+              ? `*by ${player.currentTrack.artist}*\n`
+              : ""
             }\n${pages[pageIndex]}`
           )
           .setColor(config.bot.embedColor)
           .setFooter({
-            text: `Source: ${lyricsData.source} | Page ${pageIndex + 1}/${
-              pages.length
-            }`,
+            text: `Source: ${lyricsData.source} | Page ${pageIndex + 1}/${pages.length
+              }`,
           })
           .setTimestamp();
       };
@@ -1628,7 +1620,7 @@ module.exports = {
       });
 
       collector.on("end", () => {
-        interaction.editReply({ components: [] }).catch(() => {});
+        interaction.editReply({ components: [] }).catch(() => { });
       });
     } catch (error) {
       console.error("❌ Lyrics handler error:", error);
