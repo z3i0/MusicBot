@@ -128,6 +128,11 @@ class MusicPlayer {
         this.downloadedFiles = new Set(); // Track all downloaded files for cleanup
         this.downloadingFiles = new Set(); // Track files currently being downloaded to prevent duplicates
 
+        // Lyric synchronization
+        this.lyricSyncTimer = null;
+        this.currentLyricLine = null;
+        this.lyricDisplayMessage = null; // Dedicated message for live lyrics
+
         // Events setup
         this.setupEvents();
     }
@@ -317,7 +322,7 @@ class MusicPlayer {
                 channelId: this.voiceChannel.id,
                 guildId: this.guild.id,
                 adapterCreator: this.guild.voiceAdapterCreator,
-                selfDeaf: true,
+                selfDeaf: false,
             });
 
             // Set up events for new connection
@@ -385,7 +390,7 @@ class MusicPlayer {
                 channelId: this.voiceChannel.id,
                 guildId: this.guild.id,
                 adapterCreator: this.guild.voiceAdapterCreator,
-                selfDeaf: true,
+                selfDeaf: false,
             });
 
             // Set up connection events
@@ -1064,7 +1069,11 @@ class MusicPlayer {
             await this.persistState(resumeFromMs > 0 ? 'resume-playback' : 'play');
 
             // Fetch and start lyrics system
-            this.fetchAndStartLyrics();
+            this.fetchAndStartLyrics().then(() => {
+                if (this.hasLyrics() && this.currentLyrics.parsed) {
+                    this.startLyricSync();
+                }
+            });
 
             return { success: true, track: this.currentTrack };
 
@@ -1341,6 +1350,8 @@ class MusicPlayer {
             this.trackTimer = null;
         }
 
+        this.stopLyricSync();
+
         // Clean up current downloaded file
         if (this.currentDownloadedFile) {
             this.deleteDownloadedFile(this.currentDownloadedFile);
@@ -1501,6 +1512,8 @@ class MusicPlayer {
                 clearTimeout(this.trackTimer);
                 this.trackTimer = null;
             }
+
+            this.stopLyricSync();
 
             const finishedTrack = this.currentTrack;
             const playbackMs = this.resource?.playbackDuration || 0;
@@ -1719,8 +1732,8 @@ class MusicPlayer {
 
             // Update now playing embed for autoplay track
             const MusicEmbedManager = require('./MusicEmbedManager');
-            if (global.clients && global.clients.musicEmbedManager) {
-                await global.clients.musicEmbedManager.updateNowPlayingEmbed(this);
+            if (this.guild.client.musicEmbedManager) {
+                await this.guild.client.musicEmbedManager.updateNowPlayingEmbed(this);
             }
 
         } catch (error) {
@@ -2061,7 +2074,7 @@ class MusicPlayer {
             this.resource.volume.setVolume(this.volume / 100);
         }
 
-        const embedManager = global.clients?.musicEmbedManager;
+        const embedManager = this.guild.client.musicEmbedManager;
         if (embedManager && this.textChannel) {
             try {
                 const embed = await embedManager.createNowPlayingEmbed(this, this.currentTrack, this.guild.id);
@@ -2167,7 +2180,7 @@ class MusicPlayer {
             if (this.currentLyrics && this.currentLyrics.plain) {
                 const sourceLabel = this.currentLyrics.source ? ` via ${this.currentLyrics.source}` : '';
                 // Update now playing embed to enable lyrics button
-                const embedManager = global.clients?.musicEmbedManager;
+                const embedManager = this.guild.client.musicEmbedManager;
                 if (embedManager && this.nowPlayingMessage) {
                     try {
                         await embedManager.updateNowPlayingEmbed(this);
@@ -2183,7 +2196,63 @@ class MusicPlayer {
     }
 
     hasLyrics() {
-        return Boolean(this.currentLyrics && this.currentLyrics.plain);
+        return Boolean(this.currentLyrics && (this.currentLyrics.plain || this.currentLyrics.synced));
+    }
+
+    startLyricSync() {
+        this.stopLyricSync();
+        if (!this.currentLyrics || !this.currentLyrics.parsed) {
+            // console.log(`ℹ️ No synced lyrics available for: ${this.currentTrack?.title}`);
+            return;
+        }
+
+        // console.log(`🎤 Starting lyric sync for: ${this.currentTrack?.title} (${this.currentLyrics.parsed.length} lines)`);
+
+        this.lyricSyncTimer = setInterval(async () => {
+            if (this.paused || !this.currentTrack) return;
+
+            // Add a small delay (-1000ms) to compensate for lyrics appearing ahead of audio
+            // This makes the text wait for the audio to catch up.
+            const lyricOffset = -1000;
+            const currentTime = Math.max(0, this.getCurrentTime() + lyricOffset);
+            const newLine = LyricsManager.getLyricAtTime(this.currentLyrics, currentTime);
+
+            if (newLine && newLine !== this.currentLyricLine) {
+                // console.log(`💬 New lyric: ${newLine} (at ${this.formatDuration(currentTime / 1000)})`);
+                this.currentLyricLine = newLine;
+
+                // Update the dedicated live lyrics message if it exists
+                if (this.lyricDisplayMessage) {
+                    try {
+                        const embed = new EmbedBuilder()
+                            .setColor(config.bot.embedColor || '#00ff00')
+                            .setTitle('🎞️ Live Lyrics')
+                            .setDescription(`## ${newLine}`)
+                            .setFooter({ text: `🎵 ${this.currentTrack?.title || 'Unknown'}` });
+
+                        await this.lyricDisplayMessage.edit({ embeds: [embed] }).catch(() => {
+                            this.lyricDisplayMessage = null; // Clear if message was deleted
+                        });
+                    } catch (error) {
+                        this.lyricDisplayMessage = null;
+                    }
+                }
+            }
+        }, 1000); // Check every 1 second
+    }
+
+    stopLyricSync() {
+        if (this.lyricSyncTimer) {
+            clearInterval(this.lyricSyncTimer);
+            this.lyricSyncTimer = null;
+        }
+        this.currentLyricLine = null;
+
+        // Clear live lyrics message when sync stops
+        if (this.lyricDisplayMessage) {
+            this.lyricDisplayMessage.delete().catch(() => { });
+            this.lyricDisplayMessage = null;
+        }
     }
 
     // ==================== END LYRICS SYSTEM ====================
@@ -2243,6 +2312,8 @@ class MusicPlayer {
                 clearTimeout(this.trackTimer);
                 this.trackTimer = null;
             }
+
+            this.stopLyricSync();
 
             // Stop audio player
             if (this.audioPlayer) {

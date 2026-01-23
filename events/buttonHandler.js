@@ -124,6 +124,18 @@ module.exports = {
           await this.handleLyrics(interaction, player);
           break;
 
+        case "music_live_lyrics":
+          await this.handleLiveLyrics(interaction, player);
+          break;
+
+        case "music_seek_back":
+          await this.handleSeek(interaction, player, requesterId, "backward");
+          break;
+
+        case "music_seek_forward":
+          await this.handleSeek(interaction, player, requesterId, "forward");
+          break;
+
         default:
           await interaction.reply({
             content: await LanguageManager.getTranslation(
@@ -143,7 +155,7 @@ module.exports = {
             ),
             flags: [1 << 6],
           });
-        } catch (replyError) {}
+        } catch (replyError) { }
       }
     }
   },
@@ -295,8 +307,7 @@ module.exports = {
           )
         )
         .setDescription(
-          `**[${currentTrack.title}](${
-            currentTrack.url
+          `**[${currentTrack.title}](${currentTrack.url
           })** ${await LanguageManager.getTranslation(
             interaction.guild?.id,
             "buttonhandler.skipped"
@@ -437,10 +448,9 @@ module.exports = {
         )
       )
       .setDescription(
-        `${
-          currentTrack
-            ? `**[${currentTrack.title}](${currentTrack.url})**`
-            : "Music"
+        `${currentTrack
+          ? `**[${currentTrack.title}](${currentTrack.url})**`
+          : "Music"
         } ${await LanguageManager.getTranslation(
           guildId,
           "buttonhandler.stopped"
@@ -781,10 +791,10 @@ module.exports = {
       const embed = new EmbedBuilder()
         .setTitle(
           "🎲 " +
-            (await LanguageManager.getTranslation(
-              interaction.guild?.id,
-              "buttonhandler.autoplay_disabled"
-            ))
+          (await LanguageManager.getTranslation(
+            interaction.guild?.id,
+            "buttonhandler.autoplay_disabled"
+          ))
         )
         .setDescription(
           await LanguageManager.getTranslation(
@@ -958,10 +968,10 @@ module.exports = {
     const embed = new EmbedBuilder()
       .setTitle(
         "🎲 " +
-          (await LanguageManager.getTranslation(
-            interaction.guild?.id,
-            "buttonhandler.autoplay_select_title"
-          ))
+        (await LanguageManager.getTranslation(
+          interaction.guild?.id,
+          "buttonhandler.autoplay_select_title"
+        ))
       )
       .setDescription(
         await LanguageManager.getTranslation(
@@ -1358,10 +1368,10 @@ module.exports = {
     const processingEmbed = new EmbedBuilder()
       .setTitle(
         "🔄 " +
-          (await LanguageManager.getTranslation(
-            guild?.id,
-            "buttonhandler.processing"
-          ))
+        (await LanguageManager.getTranslation(
+          guild?.id,
+          "buttonhandler.processing"
+        ))
       )
       .setDescription(
         await LanguageManager.getTranslation(
@@ -1421,10 +1431,10 @@ module.exports = {
         const errorEmbed = new EmbedBuilder()
           .setTitle(
             "❌ " +
-              (await LanguageManager.getTranslation(
-                guild?.id,
-                "buttonhandler.error_title"
-              ))
+            (await LanguageManager.getTranslation(
+              guild?.id,
+              "buttonhandler.error_title"
+            ))
           )
           .setDescription(result.message)
           .setColor("#FF0000")
@@ -1439,10 +1449,10 @@ module.exports = {
       const errorEmbed = new EmbedBuilder()
         .setTitle(
           "❌ " +
-            (await LanguageManager.getTranslation(
-              guild?.id,
-              "buttonhandler.error_title"
-            ))
+          (await LanguageManager.getTranslation(
+            guild?.id,
+            "buttonhandler.error_title"
+          ))
         )
         .setDescription(
           await LanguageManager.getTranslation(
@@ -1513,10 +1523,9 @@ module.exports = {
         const embed = new EmbedBuilder()
           .setTitle(`🎤 ${lyricsTitle}`)
           .setDescription(
-            `**${player.currentTrack.title}**\n${
-              player.currentTrack.artist
-                ? `*by ${player.currentTrack.artist}*\n`
-                : ""
+            `**${player.currentTrack.title}**\n${player.currentTrack.artist
+              ? `*by ${player.currentTrack.artist}*\n`
+              : ""
             }\n${pages[0]}`
           )
           .setColor(config.bot.embedColor)
@@ -1533,17 +1542,15 @@ module.exports = {
         return new EmbedBuilder()
           .setTitle(`🎤 ${lyricsTitle}`)
           .setDescription(
-            `**${player.currentTrack.title}**\n${
-              player.currentTrack.artist
-                ? `*by ${player.currentTrack.artist}*\n`
-                : ""
+            `**${player.currentTrack.title}**\n${player.currentTrack.artist
+              ? `*by ${player.currentTrack.artist}*\n`
+              : ""
             }\n${pages[pageIndex]}`
           )
           .setColor(config.bot.embedColor)
           .setFooter({
-            text: `Source: ${lyricsData.source} | Page ${pageIndex + 1}/${
-              pages.length
-            }`,
+            text: `Source: ${lyricsData.source} | Page ${pageIndex + 1}/${pages.length
+              }`,
           })
           .setTimestamp();
       };
@@ -1628,7 +1635,7 @@ module.exports = {
       });
 
       collector.on("end", () => {
-        interaction.editReply({ components: [] }).catch(() => {});
+        interaction.editReply({ components: [] }).catch(() => { });
       });
     } catch (error) {
       console.error("❌ Lyrics handler error:", error);
@@ -1642,6 +1649,135 @@ module.exports = {
       } else {
         await interaction.reply({ content: errorMsg, ephemeral: true });
       }
+    }
+  },
+
+  async handleSeek(interaction, player, requesterId, direction) {
+    // deferReply to avoid 'Unknown interaction' if playback start takes > 3s
+    try {
+      if (!interaction.deferred && !interaction.replied) {
+        await interaction.deferReply({ flags: [1 << 6] });
+      }
+    } catch (e) { }
+
+    // Authorization check
+    if (!this.isAuthorized(interaction, requesterId)) {
+      return await interaction.editReply({
+        content: await LanguageManager.getTranslation(
+          interaction.guild?.id,
+          "buttonhandler.not_authorized"
+        ),
+      });
+    }
+
+    if (!player.currentTrack) {
+      return await interaction.editReply({
+        content: await LanguageManager.getTranslation(
+          interaction.guild?.id,
+          "buttonhandler.no_song_playing"
+        ),
+      });
+    }
+
+    const currentTime = player.getCurrentTime();
+    const seekAmount = 10000; // 10 seconds in ms
+    let newTime =
+      direction === "forward"
+        ? currentTime + seekAmount
+        : currentTime - seekAmount;
+
+    // Boundary checks
+    if (newTime < 0) newTime = 0;
+    const durationMs = (player.currentTrack.duration || 0) * 1000;
+
+    // If seeking forward past duration, skip to next song
+    if (durationMs > 0 && newTime >= durationMs) {
+      if (
+        player.queue.length > 0 ||
+        player.autoplay ||
+        player.loop === "queue"
+      ) {
+        // Skip involves stopping and waiting for idle, but we can't easily use handleSkip here
+        // because it expects a fresh interaction. Let's just call player.skip()
+        player.skip();
+        return await interaction.editReply({
+          content: await LanguageManager.getTranslation(
+            interaction.guild?.id,
+            "buttonhandler.skipped"
+          ),
+        });
+      } else {
+        // If nothing next, just stop
+        player.stop();
+        return await interaction.editReply({
+          content: await LanguageManager.getTranslation(
+            interaction.guild?.id,
+            "buttonhandler.stopped"
+          ),
+        });
+      }
+    }
+
+    try {
+      await player.play(null, newTime);
+
+      const messageKey =
+        direction === "forward"
+          ? "buttonhandler.seeked_forward"
+          : "buttonhandler.seeked_backward";
+      const message = await LanguageManager.getTranslation(
+        interaction.guild?.id,
+        messageKey
+      );
+
+      await interaction.editReply({
+        content: message,
+      });
+
+      // Update the main embed to show new state if needed
+      if (interaction.client.musicEmbedManager) {
+        await interaction.client.musicEmbedManager.updateNowPlayingEmbed(
+          player
+        );
+      }
+    } catch (error) {
+      console.error("Seek error:", error);
+      await interaction.editReply({
+        content: await LanguageManager.getTranslation(
+          interaction.guild?.id,
+          "buttonhandler.seek_error"
+        ),
+      });
+    }
+  },
+
+  async handleLiveLyrics(interaction, player) {
+    if (!player.currentLyrics || !player.currentLyrics.parsed) {
+      return await interaction.reply({
+        content: "❌ No synchronized lyrics available for this song.",
+        flags: [1 << 6],
+      });
+    }
+
+    // If already has a message, just update the reference (or send a new one)
+    try {
+      if (player.lyricDisplayMessage) {
+        await player.lyricDisplayMessage.delete().catch(() => { });
+      }
+
+      await interaction.deferReply();
+
+      const embed = new EmbedBuilder()
+        .setColor(config.bot.embedColor || "#00ff00")
+        .setTitle("🎞️ Live Lyrics")
+        .setDescription(player.currentLyricLine ? `## ${player.currentLyricLine}` : "⌛ *Starting synchronization...*")
+        .setFooter({ text: `🎵 ${player.currentTrack?.title || "Unknown"}` });
+
+      const message = await interaction.editReply({ embeds: [embed] });
+      player.lyricDisplayMessage = message;
+    } catch (error) {
+      console.error("Live lyrics error:", error);
+      await interaction.editReply({ content: "❌ Failed to start live lyrics display." });
     }
   },
 };
