@@ -271,7 +271,10 @@
     "no_lyrics_found": "لم يتم العثور على كلمات لهذه الأغنية.",
     "lyrics_unavailable": "الكلمات غير متوفرة.",
     "lyrics_title": "كلمات الأغنية",
-    "lyrics_error": "فشل تحميل الكلمات. يرجى المحاولة لاحقاً."
+    "lyrics_error": "فشل تحميل الكلمات. يرجى المحاولة لاحقاً.",
+    "seeked_forward": "⏩ تم التقديم 10 ثوانٍ!",
+    "seeked_backward": "⏪ تم الرجوع 10 ثوانٍ!",
+    "seek_error": "❌ فشل التقديم/الرجوع!"
   },
   "musicmanager": {
     "playback_ended": "انتهت الموسيقى",
@@ -294,7 +297,10 @@
     "loop_queue": "تكرار: القائمة",
     "autoplay_off": "التشغيل التلقائي: متوقف",
     "autoplay_on": "التشغيل التلقائي: مفعل",
-    "lyrics": "الكلمات"
+    "lyrics": "الكلمات",
+    "live_lyrics": "كلمات مباشرة",
+    "seek_backward": "رجوع 10 ثوانٍ",
+    "seek_forward": "تقديم 10 ثوانٍ"
   },
   "genres": {
     "pop": "بوب",

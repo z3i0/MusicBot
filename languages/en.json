@@ -271,7 +271,10 @@
     "no_lyrics_found": "No lyrics found for this song.",
     "lyrics_unavailable": "Lyrics are unavailable for this song.",
     "lyrics_title": "Song Lyrics",
-    "lyrics_error": "Failed to load lyrics. Please try again later."
+    "lyrics_error": "Failed to load lyrics. Please try again later.",
+    "seeked_forward": "⏩ Seeked forward 10 seconds!",
+    "seeked_backward": "⏪ Seeked backward 10 seconds!",
+    "seek_error": "❌ Seek failed!"
   },
   "musicmanager": {
     "playback_ended": "Music Ended",
@@ -294,7 +297,10 @@
     "loop_queue": "Loop: Queue",
     "autoplay_off": "Autoplay: Off",
     "autoplay_on": "Autoplay: On",
-    "lyrics": "Lyrics"
+    "lyrics": "Lyrics",
+    "live_lyrics": "Live Lyrics",
+    "seek_backward": "Back 10s",
+    "seek_forward": "Forward 10s"
   },
   "genres": {
     "pop": "Pop",
