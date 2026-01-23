@@ -287,7 +287,7 @@ setTimeout(() => {
                     channelId: channel.id,
                     guildId: guild.id,
                     adapterCreator: guild.voiceAdapterCreator,
-                    selfDeaf: true,
+                    selfDeaf: false,
                 });
                 console.log(chalk.magenta(`🔊 Auto-joined voice channel: ${channel.name} (${guild.name})`));
             } else {
@@ -367,7 +367,7 @@ setTimeout(() => {
         const botId = guild.members.me?.id;
         const AUTO_JOIN_CHANNEL_ID = process.env.CHANNEL_ID;
 
-                if (oldState.id === botId && newState.channelId && newState.channelId !== AUTO_JOIN_CHANNEL_ID) {
+        if (oldState.id === botId && newState.channelId && newState.channelId !== AUTO_JOIN_CHANNEL_ID) {
             console.log(chalk.yellow(`🔄 Bot was moved in ${guild.name}, moving back...`));
 
             setTimeout(async () => {
@@ -384,7 +384,7 @@ setTimeout(() => {
                             channelId: targetChannel.id,
                             guildId: guild.id,
                             adapterCreator: guild.voiceAdapterCreator,
-                            selfDeaf: true,
+                            selfDeaf: false,
                             selfMute: false,
                         });
                         console.log(chalk.green(`✅ Returned to original voice channel: ${targetChannel.name}`));
@@ -412,7 +412,7 @@ setTimeout(() => {
                             channelId: targetChannel.id,
                             guildId: guild.id,
                             adapterCreator: guild.voiceAdapterCreator,
-                            selfDeaf: true,
+                            selfDeaf: false,
                             selfMute: false,
                         });
                         console.log(chalk.green(`✅ Rejoined voice channel: ${targetChannel.name}`));

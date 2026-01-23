@@ -262,8 +262,7 @@ module.exports = async function runSingleBot(botRow) {
             }
           }
           console.log(
-            `✅ Loaded prefix command: ${command.name}${
-              command.aliases ? ` (aliases: ${command.aliases.join(", ")})` : ""
+            `✅ Loaded prefix command: ${command.name}${command.aliases ? ` (aliases: ${command.aliases.join(", ")})` : ""
             }`
           );
         }
@@ -359,7 +358,7 @@ module.exports = async function runSingleBot(botRow) {
             channelId: channel.id,
             guildId: guild.id,
             adapterCreator: guild.voiceAdapterCreator,
-            selfDeaf: true,
+            selfDeaf: false,
           });
           console.log(chalk.green("↪ Joined voice channel for auto-join."));
         } else {
