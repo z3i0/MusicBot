@@ -35,7 +35,7 @@ module.exports = {
           channelId: targetChannel.id,
           guildId: guild.id,
           adapterCreator: guild.voiceAdapterCreator,
-          selfDeaf: true,
+          selfDeaf: false,
         });
 
         console.log(chalk.green("🔄 Bot rejoined the main channel."));

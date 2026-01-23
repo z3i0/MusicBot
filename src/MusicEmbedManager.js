@@ -277,17 +277,17 @@ class MusicEmbedManager {
 
         // Permission info and Queue info in footer
         const footerParts = [];
-        
+
         // Add permission info
         const permissionInfo = await LanguageManager.getTranslation(guildId, 'musicmanager.control_permission_info');
         footerParts.push(permissionInfo);
-        
+
         // Add queue info if available
         if (player.queue.length > 0) {
             const queueInfo = await LanguageManager.getTranslation(guildId, 'commands.play.more_songs_in_queue', { count: player.queue.length });
             footerParts.push(queueInfo);
         }
-        
+
         if (footerParts.length > 0) {
             embed.setFooter({ text: footerParts.join(' • ') });
         }
@@ -441,6 +441,22 @@ class MusicEmbedManager {
             .setEmoji('🔀')
             .setDisabled(disabled);
 
+        const seekBackwardLabel = await LanguageManager.getTranslation(guildId, 'buttons.seek_backward') || 'Back 10s';
+        const seekBackwardButton = new ButtonBuilder()
+            .setCustomId(`music_seek_back:${requesterId}:${sessionId}`)
+            .setLabel(seekBackwardLabel)
+            .setStyle(ButtonStyle.Secondary)
+            .setEmoji('⏪')
+            .setDisabled(disabled);
+
+        const seekForwardLabel = await LanguageManager.getTranslation(guildId, 'buttons.seek_forward') || 'Forward 10s';
+        const seekForwardButton = new ButtonBuilder()
+            .setCustomId(`music_seek_forward:${requesterId}:${sessionId}`)
+            .setLabel(seekForwardLabel)
+            .setStyle(ButtonStyle.Secondary)
+            .setEmoji('⏩')
+            .setDisabled(disabled);
+
         const volumeLabel = await LanguageManager.getTranslation(guildId, 'buttons.volume');
         const volumeButton = new ButtonBuilder()
             .setCustomId(`music_volume:${requesterId}:${sessionId}`)
@@ -500,13 +516,24 @@ class MusicEmbedManager {
             .setEmoji('🎤')
             .setDisabled(disabled || !player.hasLyrics());
 
+        const liveLyricsLabel = await LanguageManager.getTranslation(guildId, 'buttons.live_lyrics') || 'Live';
+        const liveLyricsButton = new ButtonBuilder()
+            .setCustomId(`music_live_lyrics:${requesterId}:${sessionId}`)
+            .setLabel(liveLyricsLabel)
+            .setStyle(ButtonStyle.Secondary)
+            .setEmoji('🎞️')
+            .setDisabled(disabled || !player.currentLyrics || !player.currentLyrics.parsed);
+
         const row = new ActionRowBuilder()
-            .addComponents(pauseButton, skipButton, stopButton, queueButton, shuffleButton);
+            .addComponents(pauseButton, seekBackwardButton, seekForwardButton, skipButton, stopButton);
 
         const row2 = new ActionRowBuilder()
-            .addComponents(volumeButton, loopButton, autoplayButton, lyricsButton);
+            .addComponents(volumeButton, loopButton, autoplayButton, lyricsButton, liveLyricsButton);
 
-        return [row, row2];
+        const row3 = new ActionRowBuilder()
+            .addComponents(shuffleButton, queueButton);
+
+        return [row, row2, row3];
     }
 
     /**
