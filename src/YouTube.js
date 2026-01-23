@@ -17,11 +17,11 @@ class YouTube {
         };
 
         // Cookie ayarlarını ekle (eğer varsa)
-        // if (config.ytdl.cookiesFromBrowser) {
-        //     baseOptions.cookiesFromBrowser = config.ytdl.cookiesFromBrowser;
-        // } else if (config.ytdl.cookiesFile) {
-        //     baseOptions.cookies = config.ytdl.cookiesFile;
-        // }
+        if (config.ytdl.cookiesFromBrowser) {
+            baseOptions.cookiesFromBrowser = config.ytdl.cookiesFromBrowser;
+        } else if (config.ytdl.cookiesFile) {
+            baseOptions.cookies = config.ytdl.cookiesFile;
+        }
 
         return baseOptions;
     }

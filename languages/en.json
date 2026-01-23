@@ -45,7 +45,7 @@
       ],
       "features_title": "✨ Features",
       "features_list": [
-        "🔐 **Permission System** - Only authorized users and the music starter can control",
+        "🔐 **Permission System** - Everyone in the voice channel can control the music",
         "🆔 **Security** - Unique ID per session, old buttons don't work",
         "📱 **Dynamic Interface** - Buttons update according to status",
         "🧹 **Auto Cleanup** - Unnecessary messages deleted after 10 seconds",
@@ -213,7 +213,7 @@
     "session_invalid": "❌ This button is no longer valid! The music system has been restarted.",
     "unknown_interaction": "❌ Unknown interaction!",
     "processing_error": "❌ An error occurred during processing!",
-    "not_authorized": "❌ Only authorized users and the person who started the music can use this button!",
+    "not_authorized": "❌ You must be in the voice channel or the person who started the music to use this button!",
     "no_song_playing": "❌ No song is currently playing!",
     "operation_failed": "❌ Operation failed!",
     "music_paused": "Music Paused",
@@ -281,7 +281,7 @@
     "queue_empty": "All songs have been played! Use the `-play` command to add new music.",
     "playlist_added_to_queue": "✅ {count} songs from the playlist added to the queue!",
     "track_added_to_queue": "✅ **{title}** added to the queue!",
-    "control_permission_info": "🔐 Controls: Manage Server permission, DJ role, or music starter only (Queue button is public)"
+    "control_permission_info": "🔐 Controls: Everyone in the voice channel can control the music"
   },
   "buttons": {
     "pause": "Pause",
@@ -326,6 +326,6 @@
   },
   "permissions": {
     "music_control_title": "🎛️ Control Permissions",
-    "music_control_requirement": "To manage music, you must be the person who started it, or have Manage Server permission, or have a role named DJ."
+    "music_control_requirement": "To manage music, you must be in the voice channel with the bot."
   }
 }

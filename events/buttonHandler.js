@@ -176,6 +176,12 @@ module.exports = {
     // Music starter check
     if (member.id === requesterId) return true;
 
+    // Everyone in the same voice channel check
+    // Since we already checked if they are in the same VC at the beginning of the handler,
+    // we can just return true here if the user wanted to allow everyone in the VC.
+    // Given the user request, we will authorize anyone in the same voice channel.
+    if (member.voice.channelId === interaction.guild.members.me.voice.channelId) return true;
+
     return false;
   },
 
@@ -420,21 +426,12 @@ module.exports = {
     const queueLength = player.queue.length;
     const currentTrack = player.currentTrack;
 
-    // 1) Stop audio ONLY - do NOT destroy the connection
+    // ✅ Centralized stop logic (handles file cleanup, queue clearing, state persist)
     try {
-      if (player.audioPlayer) {
-        player.audioPlayer.stop(true); // stop playback
-      }
+      player.stop();
     } catch (e) {
       console.error("STOP ERROR:", e);
     }
-
-    // 2) Clear queue but keep the player active in memory
-    player.queue = [];
-    player.previousTracks = [];
-    player.currentTrack = null;
-    player.loop = false;
-    player.autoplay = false;
 
     // KEEP connection (so bot stays in VC)
     // DO NOT delete from players map

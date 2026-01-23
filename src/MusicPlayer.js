@@ -619,10 +619,11 @@ class MusicPlayer {
 
                 await youtubedl(downloadUrl, {
                     output: filepath,
-                    format: 'bestaudio',
+                    format: 'bestaudio ',
                     noCheckCertificates: true,
                     noWarnings: true,
                     preferFreeFormats: true,
+                    cookies: config.ytdl.cookiesFile,
                     addHeader: [
                         'referer:youtube.com',
                         'user-agent:Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
@@ -706,13 +707,42 @@ class MusicPlayer {
         if (!filepath) return;
 
         try {
-            await fs.unlink(filepath);
+            const absolutePath = path.resolve(filepath);
+            if (fsSync.existsSync(absolutePath)) {
+                await fs.unlink(absolutePath);
+            }
             this.downloadedFiles.delete(filepath);
             this.scheduleStatePersist('download-removed', 500);
         } catch (error) {
             if (error.code !== 'ENOENT') {
                 console.error(`❌ Failed to delete file ${filepath}:`, error.message);
             }
+            this.downloadedFiles.delete(filepath); // Still remove from set
+        }
+    }
+
+    /**
+     * Cleans up all downloaded files that are not currently playing
+     */
+    async cleanupUnusedFiles() {
+        if (!this.downloadedFiles || this.downloadedFiles.size === 0) return;
+
+        const currentPath = this.currentDownloadedFile ? path.resolve(this.currentDownloadedFile) : null;
+        const toDelete = [];
+
+        for (const filepath of this.downloadedFiles) {
+            try {
+                const absPath = path.resolve(filepath);
+                if (absPath !== currentPath) {
+                    toDelete.push(filepath);
+                }
+            } catch (e) {
+                toDelete.push(filepath);
+            }
+        }
+
+        for (const filepath of toDelete) {
+            await this.deleteDownloadedFile(filepath).catch(() => { });
         }
     }
 
@@ -1338,6 +1368,8 @@ class MusicPlayer {
         this.clearInactivityTimer(false);
         this.pauseReasons.clear();
         this.paused = false;
+        this.loop = false;
+        this.autoplay = false;
 
         this.stopStateSync();
         if (this.guild?.id) {
@@ -1354,15 +1386,23 @@ class MusicPlayer {
 
         // Clean up current downloaded file
         if (this.currentDownloadedFile) {
-            this.deleteDownloadedFile(this.currentDownloadedFile);
+            this.deleteDownloadedFile(this.currentDownloadedFile).catch(() => { });
             this.currentDownloadedFile = null;
         }
 
-        // Clean up all downloaded files
-        for (const filepath of this.downloadedFiles) {
-            this.deleteDownloadedFile(filepath);
+        // Clean up all downloaded files (including preloaded ones)
+        if (this.downloadedFiles) {
+            for (const filepath of this.downloadedFiles) {
+                this.deleteDownloadedFile(filepath).catch(() => { });
+            }
+            this.downloadedFiles.clear();
         }
-        this.downloadedFiles.clear();
+
+        // Clear preloaded streams and their files
+        if (this.preloadedStreams) {
+            this.preloadedStreams.clear();
+        }
+        this.preloadingQueue = [];
 
         this.queue = [];
         this.currentTrack = null;
@@ -1370,7 +1410,10 @@ class MusicPlayer {
         this.stopRequested = true;
         this.currentTrackStartOffsetMs = 0;
         this.lastPlaybackPosition = 0;
-        this.audioPlayer.stop(true);
+
+        if (this.audioPlayer) {
+            this.audioPlayer.stop(true);
+        }
         // this.disconnect();
     }
 
@@ -1441,6 +1484,16 @@ class MusicPlayer {
     clearQueue() {
         const cleared = this.queue.length;
         this.queue = [];
+
+        // Clear preloaded streams
+        if (this.preloadedStreams) {
+            this.preloadedStreams.clear();
+        }
+        this.preloadingQueue = [];
+
+        // Clean up preloaded files from disk
+        this.cleanupUnusedFiles().catch(() => { });
+
         this.scheduleStatePersist('clear-queue', 0);
         return cleared;
     }
@@ -1592,8 +1645,12 @@ class MusicPlayer {
             }
 
             this.currentTrack = null;
+            this.currentDownloadedFile = null;
             this.currentTrackCache = null;
             this.currentTrackStartOffsetMs = 0;
+
+            // Aggressive cleanup when queue finishes
+            this.cleanupUnusedFiles().catch(() => { });
 
             const MusicEmbedManager = require('./MusicEmbedManager');
             if (global.clients && global.clients.musicEmbedManager) {
@@ -1742,6 +1799,7 @@ class MusicPlayer {
     }
 
     async handleError(error) {
+        console.error('❌ Playback error:', error.message);
 
         // Try to skip to next track on error
         if (this.queue.length > 0) {
