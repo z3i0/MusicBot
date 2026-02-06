@@ -1,5 +1,7 @@
 /node_modules
 /audio_cache
 /database
+/database/playerState.json
+database.sqlite
 .env
 cookies.txt
