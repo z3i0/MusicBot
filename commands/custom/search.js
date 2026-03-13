@@ -1,5 +1,4 @@
 const {
-    SlashCommandBuilder,
     EmbedBuilder,
     ActionRowBuilder,
     ButtonBuilder,
@@ -15,33 +14,41 @@ const {
     SectionBuilder,
     MessageFlags
 } = require('discord.js');
-const config = require('../config.js');
-const YouTube = require('../src/YouTube.js');
-const LanguageManager = require('../src/LanguageManager');
+const config = require('../../config.js');
+const YouTube = require('../../src/YouTube.js');
+const LanguageManager = require('../../src/LanguageManager');
+const chalk = require('chalk');
 
 module.exports = {
-    data: new SlashCommandBuilder()
-        .setName('search')
-        .setDescription('Search and select music on YouTube')
-        .addStringOption(option =>
-            option.setName('query')
-                .setDescription('Name of the song or artist to search')
-                .setRequired(true)
-        ),
+    name: "search",
+    aliases: ["search", "بحث", "دور"],
+    description: "Search and select music on YouTube",
+    async execute(message, args, client) {
+        const query = args.join(" ");
+        const guildId = message.guild.id;
+        const guild = message.guild;
+        const member = message.member || await guild.members.fetch(message.author.id).catch(() => null);
 
-    async execute(interaction) {
-        const query = interaction.options.getString('query');
-        const guildId = interaction.guild.id;
-        const member = interaction.member;
-        const guild = interaction.guild;
+        if (!query) {
+            const errorMsg = "❌ Please provide a song name to search!";
+            return message.reply({
+                content: errorMsg,
+                allowedMentions: { repliedUser: false }
+            });
+        }
 
         try {
-            await interaction.deferReply();
+            // Processing message
+            const searchingMsg = "🔍 Searching...";
+            const processingMessage = await message.reply({
+                content: searchingMsg,
+                allowedMentions: { repliedUser: false }
+            });
 
             // Validation
-            const validationResult = await this.validateRequest(interaction, member, guild);
+            const validationResult = await this.validateRequest(message, member, guild);
             if (!validationResult.success) {
-                return await interaction.editReply({
+                return await processingMessage.edit({
                     content: validationResult.message
                 });
             }
@@ -51,24 +58,27 @@ module.exports = {
 
             if (!results || results.length === 0) {
                 const noResultsMsg = await LanguageManager.getTranslation(guildId, 'commands.search.no_results');
-                return await interaction.editReply({
+                return await processingMessage.edit({
                     content: noResultsMsg
                 });
             }
 
             // Show professional search menu
-            await this.showSearchMenu(interaction, results, query, guildId);
+            await this.showSearchMenu(processingMessage, results, query, guildId, member.user.id);
 
         } catch (error) {
-            console.error('Search command error:', error);
+            console.error(chalk.red('Search custom command error:'), error);
             const errorMsg = await LanguageManager.getTranslation(guildId, 'commands.search.error_search');
-            await interaction.editReply({
-                content: errorMsg
-            });
+            try {
+                await message.reply({
+                    content: errorMsg,
+                    allowedMentions: { repliedUser: false }
+                });
+            } catch (e) { }
         }
     },
 
-    async validateRequest(interaction, member, guild) {
+    async validateRequest(message, member, guild) {
         // Voice channel check
         if (!member.voice.channel) {
             const errorMsg = await LanguageManager.getTranslation(guild.id, 'commands.play.voice_channel_required');
@@ -92,7 +102,7 @@ module.exports = {
         return { success: true };
     },
 
-    async showSearchMenu(interaction, results, query, guildId) {
+    async showSearchMenu(processingMessage, results, query, guildId, userId) {
         // Translations
         const searchTitleText = await LanguageManager.getTranslation(guildId, 'commands.search.title', { query });
         const selectPlaceholder = await LanguageManager.getTranslation(guildId, 'commands.search.select_description');
@@ -103,7 +113,7 @@ module.exports = {
 
         // Professional Header
         const headerText = new TextDisplayBuilder()
-            .setContent(`🔍 **${searchTitleText}**`);
+            .setContent(`**${searchTitleText}**`);
 
         const sep1 = new SeparatorBuilder()
             .setSpacing(SeparatorSpacingSize.Small)
@@ -160,7 +170,7 @@ module.exports = {
 
         // Store results globally for the handler
         if (!global.searchResults) global.searchResults = new Map();
-        global.searchResults.set(interaction.user.id, {
+        global.searchResults.set(userId, {
             query: query,
             results: results,
             timestamp: Date.now()
@@ -168,15 +178,16 @@ module.exports = {
 
         // Auto clean-up after 5 minutes
         setTimeout(() => {
-            if (global.searchResults.has(interaction.user.id)) {
-                const data = global.searchResults.get(interaction.user.id);
+            if (global.searchResults.has(userId)) {
+                const data = global.searchResults.get(userId);
                 if (Date.now() - data.timestamp >= 5 * 60 * 1000) {
-                    global.searchResults.delete(interaction.user.id);
+                    global.searchResults.delete(userId);
                 }
             }
         }, 5 * 60 * 1000);
 
-        await interaction.editReply({
+        await processingMessage.edit({
+            content: null,
             flags: MessageFlags.IsComponentsV2,
             components: [container, rowSelect, rowButtons]
         });
