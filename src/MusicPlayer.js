@@ -48,10 +48,11 @@ async function ensureFetch() {
 }
 
 class MusicPlayer {
-    constructor(guild, textChannel, voiceChannel) {
+    constructor(guild, textChannel, voiceChannel, botId = 'default') {
         this.guild = guild;
         this.textChannel = textChannel;
         this.voiceChannel = voiceChannel;
+        this.botId = botId;
 
         // Audio player setup
         this.audioPlayer = createAudioPlayer();
@@ -64,11 +65,16 @@ class MusicPlayer {
         this.previousTracks = [];
 
         // Player settings
-        this.volume = config.bot.defaultVolume;
+        const botSettings = this.guild.client.config?.settings || {};
+        this.volume = botSettings.default_volume ?? config.bot.defaultVolume;
         this.loop = false; // false, 'track', 'queue'
         this.shuffle = false;
         this.autoplay = false; // false or genre string: 'pop', 'rock', 'hiphop', etc.
         this.paused = false;
+
+        // Voice settings
+        this.selfDeaf = botSettings.self_deaf ?? true;
+        this.selfMute = botSettings.self_mute ?? false;
 
         // Timestamps
         this.startTime = null;
@@ -135,6 +141,9 @@ class MusicPlayer {
 
         // Events setup
         this.setupEvents();
+
+        // Start state syncing automatically to ensure restoration works even after crash
+        this.startStateSync();
     }
 
     setupEvents() {
@@ -322,7 +331,8 @@ class MusicPlayer {
                 channelId: this.voiceChannel.id,
                 guildId: this.guild.id,
                 adapterCreator: this.guild.voiceAdapterCreator,
-                selfDeaf: false,
+                selfDeaf: this.selfDeaf,
+                selfMute: this.selfMute,
             });
 
             // Set up events for new connection
@@ -390,7 +400,8 @@ class MusicPlayer {
                 channelId: this.voiceChannel.id,
                 guildId: this.guild.id,
                 adapterCreator: this.guild.voiceAdapterCreator,
-                selfDeaf: false,
+                selfDeaf: this.selfDeaf,
+                selfMute: this.selfMute,
             });
 
             // Set up connection events
@@ -416,8 +427,8 @@ class MusicPlayer {
             try {
                 this.connection.rejoin({
                     channelId: newChannel.id,
-                    selfDeaf: false,
-                    selfMute: false
+                    selfDeaf: this.selfDeaf,
+                    selfMute: this.selfMute
                 });
 
                 await entersState(this.connection, VoiceConnectionStatus.Ready, 15000);
@@ -1316,8 +1327,8 @@ class MusicPlayer {
 
             if (hasListeners) {
                 this.resumeFor('alone');
-                if (global.clients?.musicEmbedManager) {
-                    await global.clients.musicEmbedManager.updateNowPlayingEmbed(this);
+                if (this.guild.client.musicEmbedManager) {
+                    await this.guild.client.musicEmbedManager.updateNowPlayingEmbed(this);
                 }
                 return;
             }
@@ -1328,7 +1339,7 @@ class MusicPlayer {
             this.currentTrack = null;
 
             try {
-                const embedManager = global.clients?.musicEmbedManager;
+                const embedManager = this.guild.client.musicEmbedManager;
                 if (embedManager) {
                     await embedManager.handlePlaybackEnd(this);
                 } else if (typeof this.showQueueCompleted === 'function') {
@@ -1405,7 +1416,6 @@ class MusicPlayer {
         this.preloadingQueue = [];
 
         this.queue = [];
-        this.currentTrack = null;
         this.pendingEndReason = 'stop';
         this.stopRequested = true;
         this.currentTrackStartOffsetMs = 0;
@@ -1590,6 +1600,9 @@ class MusicPlayer {
 
             if (!finishedTrack) {
                 this.resource = null;
+                if (this.guild.client.musicEmbedManager && this.nowPlayingMessage) {
+                    await this.guild.client.musicEmbedManager.handlePlaybackEnd(this);
+                }
                 return;
             }
 
@@ -1631,8 +1644,8 @@ class MusicPlayer {
                 await this.play(null, 0);
 
                 const MusicEmbedManager = require('./MusicEmbedManager');
-                if (global.clients && global.clients.musicEmbedManager) {
-                    await global.clients.musicEmbedManager.updateNowPlayingEmbed(this);
+                if (this.guild.client.musicEmbedManager) {
+                    await this.guild.client.musicEmbedManager.updateNowPlayingEmbed(this);
                 }
 
                 return;
@@ -1644,7 +1657,6 @@ class MusicPlayer {
                 return;
             }
 
-            this.currentTrack = null;
             this.currentDownloadedFile = null;
             this.currentTrackCache = null;
             this.currentTrackStartOffsetMs = 0;
@@ -1653,8 +1665,8 @@ class MusicPlayer {
             this.cleanupUnusedFiles().catch(() => { });
 
             const MusicEmbedManager = require('./MusicEmbedManager');
-            if (global.clients && global.clients.musicEmbedManager) {
-                await global.clients.musicEmbedManager.handlePlaybackEnd(this);
+            if (this.guild.client.musicEmbedManager) {
+                await this.guild.client.musicEmbedManager.handlePlaybackEnd(this);
             } else {
                 await this.showQueueCompleted();
             }
@@ -2122,7 +2134,7 @@ class MusicPlayer {
         }
 
         if (!this.currentTrack) {
-            await PlayerStateManager.removeState(this.guild.id);
+            await PlayerStateManager.removeState(this.botId, this.guild.id);
             return;
         }
 
@@ -2133,10 +2145,17 @@ class MusicPlayer {
         }
 
         const embedManager = this.guild.client.musicEmbedManager;
+        const { MessageFlags } = require('discord.js');
         if (embedManager && this.textChannel) {
             try {
-                const embed = await embedManager.createNowPlayingEmbed(this, this.currentTrack, this.guild.id);
+                // Re-build components and buttons using V2
+                const components = await embedManager.buildNowPlayingComponents(this, this.currentTrack, this.guild.id);
                 const buttons = await embedManager.createControlButtons(this);
+
+                const payload = {
+                    flags: MessageFlags.IsComponentsV2,
+                    components: [...components, ...buttons]
+                };
 
                 let nowPlayingMessage = null;
                 if (state.nowPlayingMessageId) {
@@ -2144,10 +2163,10 @@ class MusicPlayer {
                 }
 
                 if (nowPlayingMessage) {
-                    await nowPlayingMessage.edit({ embeds: [embed], components: buttons });
+                    await nowPlayingMessage.edit(payload);
                     this.nowPlayingMessage = nowPlayingMessage;
                 } else {
-                    this.nowPlayingMessage = await this.textChannel.send({ embeds: [embed], components: buttons });
+                    this.nowPlayingMessage = await this.textChannel.send(payload);
                 }
             } catch (error) {
                 console.error('❌ Failed to rebuild now playing embed during restore:', error?.message || error);
@@ -2182,18 +2201,18 @@ class MusicPlayer {
             }
 
             if (!this.currentTrack && this.queue.length === 0) {
-                await PlayerStateManager.removeState(this.guild.id);
+                await PlayerStateManager.removeState(this.botId, this.guild.id);
                 return;
             }
 
             const state = this.serializeState();
             if (!state) {
-                await PlayerStateManager.removeState(this.guild.id);
+                await PlayerStateManager.removeState(this.botId, this.guild.id);
                 return;
             }
 
             state.reason = reason;
-            await PlayerStateManager.saveState(this.guild.id, state);
+            await PlayerStateManager.saveState(this.botId, this.guild.id, state);
         } catch (error) {
             console.error(`❌ Failed to persist player state for guild ${this.guild?.id}:`, error.message || error);
         }
@@ -2340,7 +2359,7 @@ class MusicPlayer {
             if (isShutdown && this.guild?.id) {
                 this.persistState('shutdown').catch(() => { });
             } else if (this.guild?.id) {
-                PlayerStateManager.removeState(this.guild.id).catch(() => { });
+                PlayerStateManager.removeState(this.botId, this.guild.id).catch(() => { });
             }
 
             // Clean up all downloaded files (unless shutdown)
