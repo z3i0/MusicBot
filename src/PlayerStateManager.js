@@ -15,17 +15,22 @@ class PlayerStateManager {
             fs.mkdirSync(dir, { recursive: true });
         }
         if (!fs.existsSync(this.filePath)) {
-            fs.writeFileSync(this.filePath, JSON.stringify({ players: {} }, null, 4), 'utf8');
+            fs.writeFileSync(this.filePath, JSON.stringify({ bots: {} }, null, 4), 'utf8');
         }
     }
 
     readDatabase() {
         try {
             const content = fs.readFileSync(this.filePath, 'utf8');
-            return JSON.parse(content);
+            const data = JSON.parse(content);
+            // Migration for old structure if it exists
+            if (data.players && !data.bots) {
+                return { bots: { "default": { players: data.players } } };
+            }
+            return data;
         } catch (error) {
             console.error('❌ Failed to read database:', error.message);
-            return { players: {} };
+            return { bots: {} };
         }
     }
 
@@ -45,8 +50,8 @@ class PlayerStateManager {
         }
     }
 
-    async saveState(guildId, state) {
-        if (!guildId || !state) return;
+    async saveState(botId, guildId, state) {
+        if (!botId || !guildId || !state) return;
 
         const payload = this.sanitizeState({
             ...state,
@@ -55,65 +60,79 @@ class PlayerStateManager {
 
         try {
             const db = this.readDatabase();
-            if (!db.players) db.players = {};
-            db.players[guildId] = payload;
+            if (!db.bots) db.bots = {};
+            if (!db.bots[botId]) db.bots[botId] = { players: {} };
+            if (!db.bots[botId].players) db.bots[botId].players = {};
+            
+            db.bots[botId].players[guildId] = payload;
             this.writeDatabase(db);
         } catch (error) {
-            console.error(`❌ Failed to save player state for guild ${guildId}:`, error);
+            console.error(`❌ Failed to save player state for bot ${botId} guild ${guildId}:`, error);
         }
     }
 
-    getState(guildId) {
-        if (!guildId) return null;
+    getState(botId, guildId) {
+        if (!botId || !guildId) return null;
 
         try {
             const db = this.readDatabase();
-            return db.players?.[guildId] || null;
+            if (db.bots?.[botId]?.players?.[guildId]) {
+                return db.bots[botId].players[guildId];
+            }
+            // Fallback for old structure or default
+            if (botId === "default" && db.players?.[guildId]) {
+                return db.players[guildId];
+            }
+            return null;
         } catch (error) {
             return null;
         }
     }
 
-    getAllStates() {
+    getAllStates(botId) {
+        if (!botId) return {};
+
         try {
             const db = this.readDatabase();
-            const players = db.players || {};
-           return players;
+            return db.bots?.[botId]?.players || {};
         } catch (error) {
             return {};
         }
     }
 
-    async removeState(guildId) {
-        if (!guildId) return;
+    async removeState(botId, guildId) {
+        if (!botId || !guildId) return;
 
         try {
             const db = this.readDatabase();
-            if (db.players && db.players[guildId]) {
-                delete db.players[guildId];
+            if (db.bots?.[botId]?.players?.[guildId]) {
+                delete db.bots[botId].players[guildId];
                 this.writeDatabase(db);
             }
         } catch (error) {
-            // Already removed or never existed
+            // Error handling
         }
     }
 
-    async clearAllStates() {
+    async clearAllStates(botId) {
+        if (!botId) return;
         try {
-            this.writeDatabase({ players: {} });
+            const db = this.readDatabase();
+            if (db.bots?.[botId]) {
+                db.bots[botId].players = {};
+                this.writeDatabase(db);
+            }
         } catch (error) {
             // Ignore if fails
         }
     }
 
     getProtectedCacheFiles() {
-        const states = this.getAllStates();
+        const db = this.readDatabase();
         const protectedFiles = new Set();
-
-        for (const guildId of Object.keys(states)) {
-            const state = states[guildId];
-            if (!state) continue;
-
+        
+        const processPlayer = (state) => {
+            if (!state) return;
             if (Array.isArray(state.downloadedFiles)) {
                 for (const filepath of state.downloadedFiles) {
                     if (filepath) {
@@ -121,10 +140,23 @@ class PlayerStateManager {
                     }
                 }
             }
-
             if (state.currentDownloadedFile) {
                 protectedFiles.add(path.resolve(state.currentDownloadedFile));
             }
+        };
+
+        // Check global players for backward compatibility
+        if (db.players) {
+            Object.values(db.players).forEach(processPlayer);
+        }
+
+        // Check bot-specific players
+        if (db.bots) {
+            Object.values(db.bots).forEach(bot => {
+                if (bot.players) {
+                    Object.values(bot.players).forEach(processPlayer);
+                }
+            });
         }
 
         return protectedFiles;
@@ -132,3 +164,4 @@ class PlayerStateManager {
 }
 
 module.exports = new PlayerStateManager();
+
