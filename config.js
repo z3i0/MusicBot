@@ -28,8 +28,8 @@ module.exports = {
         maxPlaylistSize: 50,
         status: process.env.STATUS || '🎵 MusicMaker | /play',
         embedColor: process.env.EMBED_COLOR || '#FF6B6B',
-        supportServer: process.env.SUPPORT_SERVER || 'https://discord.gg/ACJQzJuckW',
-        website: process.env.WEBSITE || 'https://musicmaker.vercel.app',
+        supportServer: process.env.SUPPORT_SERVER || 'https://discord.gg/tEHJZReZrs',
+        website: process.env.WEBSITE || 'https://nexorax.xyz',
         invite: 'https://discord.com/oauth2/authorize?client_id=' + process.env.CLIENT_ID + '&permissions=8&scope=bot%20applications.commands',
     },
 
