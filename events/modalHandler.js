@@ -1,4 +1,4 @@
-const { Events, EmbedBuilder } = require("discord.js");
+const { Events, EmbedBuilder, MessageFlags } = require("discord.js");
 const config = require("../config");
 const LanguageManager = require("../src/LanguageManager");
 
@@ -33,7 +33,7 @@ module.exports = {
               guild?.id,
               "modalhandler.unknown_modal"
             ),
-            ephemeral: true,
+            flags: [MessageFlags.Ephemeral],
           });
       }
     } catch (error) {
@@ -44,7 +44,7 @@ module.exports = {
               guild?.id,
               "modalhandler.processing_error"
             ),
-            ephemeral: true,
+            flags: [MessageFlags.Ephemeral],
           });
         } catch (replyError) {}
       }
@@ -144,7 +144,7 @@ module.exports = {
           guild?.id,
           "modalhandler.voice_channel_required"
         ),
-        ephemeral: true,
+        flags: [MessageFlags.Ephemeral],
       });
     }
 
@@ -156,7 +156,7 @@ module.exports = {
           guild?.id,
           "modalhandler.no_music_playing"
         ),
-        ephemeral: true,
+        flags: [MessageFlags.Ephemeral],
       });
     }
 
@@ -167,7 +167,7 @@ module.exports = {
           guild?.id,
           "modalhandler.same_channel_required"
         ),
-        ephemeral: true,
+        flags: [MessageFlags.Ephemeral],
       });
     }
 
@@ -181,7 +181,7 @@ module.exports = {
           guild?.id,
           "modalhandler.invalid_volume"
         ),
-        ephemeral: true,
+        flags: [MessageFlags.Ephemeral],
       });
     }
 
@@ -225,14 +225,14 @@ module.exports = {
         inline: false,
       });
 
-      await interaction.reply({ embeds: [embed], ephemeral: true });
+      await interaction.reply({ embeds: [embed], flags: [MessageFlags.Ephemeral] });
     } else {
       await interaction.reply({
         content: await LanguageManager.getTranslation(
           guild?.id,
           "modalhandler.volume_error"
         ),
-        ephemeral: true,
+        flags: [MessageFlags.Ephemeral],
       });
     }
   },
