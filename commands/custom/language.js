@@ -1,4 +1,4 @@
-const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, PermissionFlagsBits } = require('discord.js');
+const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, MessageFlags, PermissionFlagsBits } = require('discord.js');
 const { JsonDB } = require('node-json-db');
 const { Config } = require('node-json-db/dist/lib/JsonDBConfig');
 const fs = require('fs');
@@ -127,7 +127,7 @@ module.exports = {
                     .setColor('#ff0000')
                     .setTimestamp();
 
-                return await interaction.reply({ embeds: [errorEmbed], ephemeral: true });
+                return await interaction.reply({ embeds: [errorEmbed], flags: [MessageFlags.Ephemeral] });
             }
 
             const guildId = interaction.guild.id;
@@ -190,7 +190,7 @@ module.exports = {
                 try {
                     await interaction.update({ embeds: [errorEmbed], components: [] });
                 } catch {
-                    await interaction.reply({ embeds: [errorEmbed], ephemeral: true });
+                    await interaction.reply({ embeds: [errorEmbed], flags: [MessageFlags.Ephemeral] });
                 }
             }
         }
