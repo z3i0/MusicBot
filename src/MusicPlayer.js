@@ -223,7 +223,7 @@ class MusicPlayer {
 
         this.connection.on('error', (error) => {
             console.error('🚨 Voice connection error:', error);
-            
+
             // Specifically log networking errors
             if (error.code === 'ECONNRESET' || error.message?.includes('ECONNRESET')) {
                 console.error('🌐 Network connection reset (ECONNRESET). Attempting recovery...');
@@ -594,8 +594,8 @@ class MusicPlayer {
 
             // Check if already downloading - wait for it to complete
             if (this.downloadingFiles.has(filepath)) {
-                // Wait for the file to be downloaded (max 60 seconds)
-                for (let i = 0; i < 60; i++) {
+                // Wait for the file to be downloaded (max 300 seconds)
+                for (let i = 0; i < 300; i++) {
                     await new Promise(resolve => setTimeout(resolve, 1000));
 
                     if (fsSync.existsSync(filepath)) {
@@ -609,7 +609,7 @@ class MusicPlayer {
                 }
 
                 this.downloadingFiles.delete(filepath);
-                throw new Error('Download timeout - file not ready after 60 seconds');
+                throw new Error('Download timeout - file not ready after 300 seconds');
             }
 
             // Mark as downloading
@@ -980,8 +980,8 @@ class MusicPlayer {
                             ? Readable.fromWeb(response.body)
                             : response.body;
                     } catch (fetchError) {
-                        // Wait for download to complete
-                        for (let i = 0; i < 30; i++) {
+                        // Wait for download to complete (up to 120s)
+                        for (let i = 0; i < 120; i++) {
                             await new Promise(resolve => setTimeout(resolve, 1000));
                             if (fsSync.existsSync(filepath)) {
                                 const stats = fsSync.statSync(filepath);

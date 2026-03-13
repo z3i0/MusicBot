@@ -50,12 +50,8 @@ class LyricsManager {
             .replace(/\[.*?\]/g, '') // Remove brackets content
             .replace(/【.*?】/g, '') // Remove Japanese-style brackets
             .replace(/v[iï]de[oó]/gi, '')
-            .replace(/official/gi, '')
-            .replace(/audio/gi, '')
-            .replace(/lyric(s)?/gi, '')
-            .replace(/4k|8k|hd|full\s?hd/gi, '')
-            .replace(/mv|m\/v/gi, '')
-            .replace(/premiere/gi, '')
+            .replace(/official|audio|video|lyrics?|full\s?hd|hd|4k|8k|mv|m\/v|premiere/gi, '')
+            .replace(/rotana|mazzika|melody|free\s?tv/gi, '') // Common Arabic record labels
             .replace(/prod(\.)?\s?by.*?$/gi, '') // Remove producer credits
             .replace(/ft\.|feat\..*?$/gi, '') // Optional: remove features for better search match
             .replace(/\|/g, ' ') // Replace pipe with space
