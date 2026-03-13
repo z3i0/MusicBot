@@ -20,18 +20,22 @@ module.exports = {
                         guild.id,
                         "buttonhandler.no_song_playing"
                     ).catch(() => null)) || "❌ No song is currently playing!";
-                return message.reply(msg);
+                return message.reply({
+                    content: msg,
+                    allowedMentions: { repliedUser: false }
+                });
             }
 
             // 🛑 Check voice channel
             const botChannel = guild.members.me.voice.channel;
             if (!member.voice.channel || (botChannel && member.voice.channel.id !== botChannel.id)) {
-                return message.reply(
-                    (await LanguageManager.getTranslation(
+                return message.reply({
+                    content: (await LanguageManager.getTranslation(
                         guild.id,
                         "buttonhandler.same_channel_required"
-                    ).catch(() => null)) || "⚠️ You must be in the same voice channel as the bot to stop music."
-                );
+                    ).catch(() => null)) || "⚠️ You must be in the same voice channel as the bot to stop music.",
+                    allowedMentions: { repliedUser: false }
+                });
             }
 
             const queueLength = player.queue.length;
@@ -88,7 +92,10 @@ module.exports = {
 
             if (currentTrack?.thumbnail) embed.setThumbnail(currentTrack.thumbnail);
 
-            await message.reply({ embeds: [embed] });
+            await message.reply({
+                embeds: [embed],
+                allowedMentions: { repliedUser: false }
+            });
 
             // 🔄 Update UI (disable buttons or show stopped state)
             if (client.musicEmbedManager) {
@@ -98,7 +105,10 @@ module.exports = {
             console.log(chalk.redBright(`🛑 Music stopped (staying in VC) in ${guild.name} by ${member.user.tag}`));
         } catch (error) {
             console.error(chalk.red("❌ Error executing stop command:"), error);
-            message.reply("⚠️ An error occurred while trying to stop the music.");
+            message.reply({
+                content: "⚠️ An error occurred while trying to stop the music.",
+                allowedMentions: { repliedUser: false }
+            });
         }
     },
 };
