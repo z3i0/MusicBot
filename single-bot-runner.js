@@ -71,7 +71,7 @@ module.exports = async function runSingleBot(botRow) {
   }
 
   async function restoreSavedPlayers(client) {
-    const savedStates = PlayerStateManager.getAllStates();
+    const savedStates = PlayerStateManager.getAllStates(client.config.slug);
     const entries = Object.entries(savedStates || {});
     if (entries.length === 0) return;
 
@@ -149,7 +149,7 @@ module.exports = async function runSingleBot(botRow) {
           continue;
         }
 
-        const player = new MusicPlayer(guild, textChannel, voiceChannel);
+        const player = new MusicPlayer(guild, textChannel, voiceChannel, client.config.slug);
         client.players.set(guildId, player);
 
         try {
@@ -201,6 +201,8 @@ module.exports = async function runSingleBot(botRow) {
 
   client.commands = new Collection();
   client.players = new Collection();
+  const MusicEmbedManager = require("./src/MusicEmbedManager");
+  client.musicEmbedManager = new MusicEmbedManager(client);
 
   // Load prefix commands (same as before)
   const prefixCommandsPath = path.join(__dirname, "commands/custom");
@@ -358,7 +360,8 @@ module.exports = async function runSingleBot(botRow) {
             channelId: channel.id,
             guildId: guild.id,
             adapterCreator: guild.voiceAdapterCreator,
-            selfDeaf: false,
+            selfDeaf: settings.self_deaf ?? true,
+            selfMute: settings.self_mute ?? false,
           });
           console.log(chalk.green("↪ Joined voice channel for auto-join."));
         } else {
@@ -380,7 +383,7 @@ module.exports = async function runSingleBot(botRow) {
     }
 
     // Add restore function to client for shard manager to call
-    // await client.restoreSessions();
+    await client.restoreSessions();
   });
 
   // attempt login and handle possible login errors
