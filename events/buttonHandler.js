@@ -7,6 +7,12 @@ const {
   TextInputStyle,
   ButtonBuilder,
   ButtonStyle,
+  MessageFlags,
+  StringSelectMenuBuilder,
+  StringSelectMenuOptionBuilder,
+  ContainerBuilder,
+  SectionBuilder,
+  TextDisplayBuilder,
 } = require("discord.js");
 const config = require("../config.js");
 const LanguageManager = require("../src/LanguageManager.js");
@@ -15,7 +21,7 @@ const MusicPlayer = require("../src/MusicPlayer.js");
 module.exports = {
   name: Events.InteractionCreate,
   async execute(interaction) {
-    if (!interaction.isButton()) return;
+    if (!interaction.isButton() && !interaction.isStringSelectMenu()) return;
 
     const client = interaction.client;
     const guild = interaction.guild;
@@ -764,12 +770,6 @@ module.exports = {
   },
 
   async handleAutoplay(interaction, player, requesterId) {
-    const {
-      StringSelectMenuBuilder,
-      StringSelectMenuOptionBuilder,
-      ActionRowBuilder,
-    } = require("discord.js");
-
     // Authorization check
     if (!this.isAuthorized(interaction, requesterId)) {
       return await interaction.reply({
@@ -1321,32 +1321,32 @@ module.exports = {
     if (interaction.customId === "search_cancel") {
       global.searchResults.delete(interaction.user.id);
 
-      const embed = new EmbedBuilder()
-        .setTitle(
-          await LanguageManager.getTranslation(
-            guild?.id,
-            "buttonhandler.search_cancelled_title"
-          )
-        )
-        .setDescription(
-          await LanguageManager.getTranslation(
-            guild?.id,
-            "buttonhandler.search_cancelled_desc"
-          )
-        )
-        .setColor("#FF0000")
-        .setTimestamp();
+      const title = await LanguageManager.getTranslation(guild?.id, "buttonhandler.search_cancelled_title");
+      const desc = await LanguageManager.getTranslation(guild?.id, "buttonhandler.search_cancelled_desc");
+
+      const container = new ContainerBuilder()
+        .setAccentColor(0xFF0000) // Red
+        .addTextDisplayComponents(
+          new TextDisplayBuilder().setContent(`### ❌ ${title}\n${desc}`)
+        );
 
       return await interaction.update({
-        embeds: [embed],
-        components: [],
+        content: null,
+        flags: MessageFlags.IsComponentsV2,
+        components: [container]
       });
     }
 
-    // Get selected song index
-    const selectedIndex = parseInt(
-      interaction.customId.replace("search_select_", "")
-    );
+    // Get selected song index (from button or select menu)
+    let selectedIndex;
+    if (interaction.isStringSelectMenu()) {
+      selectedIndex = parseInt(interaction.values[0]);
+    } else {
+      selectedIndex = parseInt(
+        interaction.customId.replace("search_select_", "")
+      );
+    }
+
     const selectedTrack = userSearchData.results[selectedIndex];
 
     if (!selectedTrack) {
@@ -1361,28 +1361,20 @@ module.exports = {
 
     await interaction.deferUpdate();
 
-    // Işlem mesajı göster
-    const processingEmbed = new EmbedBuilder()
-      .setTitle(
-        "🔄 " +
-        (await LanguageManager.getTranslation(
-          guild?.id,
-          "buttonhandler.processing"
-        ))
-      )
-      .setDescription(
-        await LanguageManager.getTranslation(
-          guild?.id,
-          "buttonhandler.adding_song_desc",
-          { title: selectedTrack.title }
-        )
-      )
-      .setColor("#FFAA00")
-      .setTimestamp();
+    // Processing message with Components V2
+    const processingTitle = "🔄 " + (await LanguageManager.getTranslation(guild?.id, "buttonhandler.processing"));
+    const processingDesc = await LanguageManager.getTranslation(guild?.id, "buttonhandler.adding_song_desc", { title: selectedTrack.title });
+
+    const container = new ContainerBuilder()
+      .setAccentColor(parseInt((config.bot?.embedColor || '#2B2D31').replace('#', ''), 16))
+      .addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(`### ${processingTitle}\n${processingDesc}`)
+      );
 
     await interaction.editReply({
-      embeds: [processingEmbed],
-      components: [],
+      content: null,
+      flags: MessageFlags.IsComponentsV2,
+      components: [container]
     });
 
     try {
@@ -1425,44 +1417,34 @@ module.exports = {
       global.searchResults.delete(interaction.user.id);
 
       if (!result.success) {
-        const errorEmbed = new EmbedBuilder()
-          .setTitle(
-            "❌ " +
-            (await LanguageManager.getTranslation(
-              guild?.id,
-              "buttonhandler.error_title"
-            ))
-          )
-          .setDescription(result.message)
-          .setColor("#FF0000")
-          .setTimestamp();
+        const title = await LanguageManager.getTranslation(guild?.id, "buttonhandler.error_title");
+
+        const container = new ContainerBuilder()
+          .setAccentColor(0xFF0000)
+          .addTextDisplayComponents(
+            new TextDisplayBuilder().setContent(`### ❌ ${title}\n${result.message}`)
+          );
 
         return await interaction.editReply({
-          embeds: [errorEmbed],
-          components: [],
+          content: null,
+          flags: MessageFlags.IsComponentsV2,
+          components: [container]
         });
       }
     } catch (error) {
-      const errorEmbed = new EmbedBuilder()
-        .setTitle(
-          "❌ " +
-          (await LanguageManager.getTranslation(
-            guild?.id,
-            "buttonhandler.error_title"
-          ))
-        )
-        .setDescription(
-          await LanguageManager.getTranslation(
-            guild?.id,
-            "buttonhandler.processing_error"
-          )
-        )
-        .setColor("#FF0000")
-        .setTimestamp();
+      const title = await LanguageManager.getTranslation(guild?.id, "buttonhandler.error_title");
+      const errMsg = await LanguageManager.getTranslation(guild?.id, "buttonhandler.processing_error");
+
+      const container = new ContainerBuilder()
+        .setAccentColor(0xFF0000)
+        .addTextDisplayComponents(
+          new TextDisplayBuilder().setContent(`### ❌ ${title}\n${errMsg}`)
+        );
 
       await interaction.editReply({
-        embeds: [errorEmbed],
-        components: [],
+        content: null,
+        flags: MessageFlags.IsComponentsV2,
+        components: [container]
       });
     }
   },
@@ -1494,7 +1476,7 @@ module.exports = {
         });
       }
 
-      await interaction.deferReply({ ephemeral: true });
+      await interaction.deferReply({ flags: [MessageFlags.Ephemeral] });
 
       const lyricsData = player.currentLyrics;
       const pages = LyricsManager.formatFullLyrics(lyricsData, 4000);
@@ -1644,7 +1626,7 @@ module.exports = {
       if (interaction.deferred) {
         await interaction.editReply({ content: errorMsg });
       } else {
-        await interaction.reply({ content: errorMsg, ephemeral: true });
+        await interaction.reply({ content: errorMsg, flags: [MessageFlags.Ephemeral] });
       }
     }
   },
