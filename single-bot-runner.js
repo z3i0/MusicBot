@@ -12,7 +12,17 @@ const fsPromises = require("fs").promises;
 const path = require("path");
 const fs = require("fs");
 const chalk = require("chalk");
-const { joinVoiceChannel } = require("@discordjs/voice");
+const { joinVoiceChannel, VoiceConnectionStatus } = require("@discordjs/voice");
+
+// Handle global errors to prevent the process from exiting
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+});
+
+process.on('uncaughtException', (err, origin) => {
+  console.error(`Caught exception: ${err}\n` + `Exception origin: ${origin}`);
+});
+
 
 module.exports = async function runSingleBot(botRow) {
   const token = process.env[botRow.env_key];
@@ -356,13 +366,19 @@ module.exports = async function runSingleBot(botRow) {
             : ["GUILD_VOICE", "GUILD_STAGE_VOICE"].includes(channel.type);
 
         if (isVoice) {
-          joinVoiceChannel({
+          const connection = joinVoiceChannel({
             channelId: channel.id,
             guildId: guild.id,
             adapterCreator: guild.voiceAdapterCreator,
             selfDeaf: settings.self_deaf ?? true,
             selfMute: settings.self_mute ?? false,
           });
+
+          // Handle connection errors to prevent crash
+          connection.on('error', (error) => {
+            console.error(chalk.red("🚨 Voice connection error in auto-join:"), error.message);
+          });
+
           console.log(chalk.green("↪ Joined voice channel for auto-join."));
         } else {
           console.log(chalk.yellow("⚠ Target channel is not voice-based."));

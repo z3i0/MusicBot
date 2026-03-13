@@ -223,6 +223,12 @@ class MusicPlayer {
 
         this.connection.on('error', (error) => {
             console.error('🚨 Voice connection error:', error);
+            
+            // Specifically log networking errors
+            if (error.code === 'ECONNRESET' || error.message?.includes('ECONNRESET')) {
+                console.error('🌐 Network connection reset (ECONNRESET). Attempting recovery...');
+            }
+
             if (this.currentTrack && !this.paused) {
                 this.startConnectionRecovery();
             }
@@ -321,9 +327,15 @@ class MusicPlayer {
 
     async forceReconnect() {
         try {
-            // Destroy old connection
+            // Destroy old connection properly to prevent orphaned event emitters
             if (this.connection) {
-                // this.connection.destroy();
+                try {
+                    if (this.connection.state.status !== VoiceConnectionStatus.Destroyed) {
+                        this.connection.destroy();
+                    }
+                } catch (e) {
+                    console.error('⚠️ Error destroying old connection:', e.message);
+                }
             }
 
             // Create new connection
@@ -436,7 +448,9 @@ class MusicPlayer {
             } catch (error) {
                 console.error('❌ Failed to rejoin new voice channel:', error);
                 try {
-                    // this.connection.destroy();
+                    if (this.connection.state.status !== VoiceConnectionStatus.Destroyed) {
+                        this.connection.destroy();
+                    }
                 } catch (destroyError) {
                     console.error('❌ Error destroying old connection:', destroyError);
                 }
@@ -450,8 +464,11 @@ class MusicPlayer {
     disconnect() {
         if (this.connection && this.connection.state && this.connection.state.status !== 'destroyed') {
             try {
-                // this.connection.destroy();
+                if (this.connection.state.status !== VoiceConnectionStatus.Destroyed) {
+                    this.connection.destroy();
+                }
             } catch (error) {
+                console.error('❌ Error in disconnect():', error.message);
             }
         }
         this.connection = null;

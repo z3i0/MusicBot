@@ -5,9 +5,13 @@ process.on("message", async (botRow) => {
   try {
     console.log(`[Worker] Starting bot: ${botRow.slug}`);
 
-    await runSingleBot(botRow);
+    const client = await runSingleBot(botRow);
 
-    process.send?.({ type: "online", slug: botRow.slug });
+    if (client) {
+      process.send?.({ type: "online", slug: botRow.slug });
+    } else {
+      process.exit(0); // Exit cleanly if bot couldn't start (e.g. missing token)
+    }
   } catch (error) {
     console.error(`[Worker] Bot ${botRow.slug} crashed:`, error);
     process.exit(1);

@@ -31,11 +31,16 @@ module.exports = {
       console.log(chalk.yellow(`↪ Bot disconnected or moved. Rejoining ${targetChannelId}`));
 
       try {
-        joinVoiceChannel({
+        const connection = joinVoiceChannel({
           channelId: targetChannel.id,
           guildId: guild.id,
           adapterCreator: guild.voiceAdapterCreator,
           selfDeaf: false,
+        });
+
+        // Prevent unhandled error event crashes
+        connection.on('error', (err) => {
+           console.error(chalk.red("🚨 Voice connection error in voiceStateUpdate:"), err.message);
         });
 
         console.log(chalk.green("🔄 Bot rejoined the main channel."));

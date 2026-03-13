@@ -15,8 +15,12 @@ async function startBot(botRow) {
 
   worker.on("exit", (code) => {
     console.log(`🔴 Bot ${botRow.slug} exited with code ${code}`);
-    console.log("Restarting bot...");
-    setTimeout(() => startBot(botRow), 2000);
+    if (code !== 0) {
+      console.log("Restarting bot...");
+      setTimeout(() => startBot(botRow), 2000);
+    } else {
+      console.log(`ℹ️ Bot ${botRow.slug} will not be restarted (clean exit).`);
+    }
   });
 }
 

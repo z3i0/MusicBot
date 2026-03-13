@@ -283,12 +283,17 @@ setTimeout(() => {
             const channel = await guild.channels.fetch(AUTO_JOIN_CHANNEL_ID);
 
             if (channel && channel.isVoiceBased()) {
-                joinVoiceChannel({
+                const connection = joinVoiceChannel({
                     channelId: channel.id,
                     guildId: guild.id,
                     adapterCreator: guild.voiceAdapterCreator,
                     selfDeaf: false,
                 });
+
+                connection.on('error', (err) => {
+                    console.error(chalk.red("🚨 Voice connection error in auto-join:"), err.message);
+                });
+
                 console.log(chalk.magenta(`🔊 Auto-joined voice channel: ${channel.name} (${guild.name})`));
             } else {
                 console.log(chalk.yellow("⚠️ Auto-join failed: Voice channel not found or invalid."));
@@ -380,13 +385,18 @@ setTimeout(() => {
 
                     const targetChannel = await guild.channels.fetch(AUTO_JOIN_CHANNEL_ID).catch(() => null);
                     if (targetChannel && targetChannel.isVoiceBased()) {
-                        joinVoiceChannel({
+                        const connection = joinVoiceChannel({
                             channelId: targetChannel.id,
                             guildId: guild.id,
                             adapterCreator: guild.voiceAdapterCreator,
                             selfDeaf: false,
                             selfMute: false,
                         });
+
+                        connection.on('error', (err) => {
+                            console.error(chalk.red("🚨 Voice connection error in move-back:"), err.message);
+                        });
+
                         console.log(chalk.green(`✅ Returned to original voice channel: ${targetChannel.name}`));
                     }
                 } catch (err) {
@@ -408,13 +418,18 @@ setTimeout(() => {
 
                     const targetChannel = await guild.channels.fetch(AUTO_JOIN_CHANNEL_ID).catch(() => null);
                     if (targetChannel && targetChannel.isVoiceBased()) {
-                        joinVoiceChannel({
+                        const connection = joinVoiceChannel({
                             channelId: targetChannel.id,
                             guildId: guild.id,
                             adapterCreator: guild.voiceAdapterCreator,
                             selfDeaf: false,
                             selfMute: false,
                         });
+
+                        connection.on('error', (err) => {
+                            console.error(chalk.red("🚨 Voice connection error in rejoin:"), err.message);
+                        });
+
                         console.log(chalk.green(`✅ Rejoined voice channel: ${targetChannel.name}`));
                     } else {
                         console.log(chalk.yellow(`⚠️ Could not rejoin: target channel invalid or missing.`));
