@@ -11,8 +11,8 @@ module.exports = {
     async execute(message, args, client) {
         try {
             const query = args.join(" ");
-            const member = message.member;
             const guild = message.guild;
+            const member = message.member || await guild.members.fetch(message.author.id).catch(() => null);
             const channel = message.channel;
 
             // Validation: user provided a query
@@ -24,7 +24,7 @@ module.exports = {
             }
 
             // Validation: user in a voice channel
-            if (!member.voice.channel) {
+            if (!member || !member.voice || !member.voice.channel) {
                 return message.reply({
                     content: "🎧 You must be in a voice channel to play music!",
                     allowedMentions: { repliedUser: false }
@@ -116,7 +116,7 @@ module.exports = {
 
     async validateRequest(message, member, guild) {
         // Voice channel check
-        if (!member.voice.channel) {
+        if (!member || !member.voice || !member.voice.channel) {
             const errorMsg = await LanguageManager.getTranslation(
                 guild.id,
                 "commands.play.voice_channel_required"
