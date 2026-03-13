@@ -841,6 +841,13 @@ class MusicPlayer {
             }
 
             if (!streamInfo) {
+                // Check if current track already has stream info from search/info call
+                if (this.currentTrack.streamInfo && resumeFromMs === 0) {
+                    streamInfo = this.currentTrack.streamInfo;
+                }
+            }
+
+            if (!streamInfo) {
                 // Get stream normally
                 switch (this.currentTrack.platform) {
                     case 'youtube':
