@@ -192,7 +192,7 @@ class SoundCloud {
                 artist: soundcloudTrack.uploader || soundcloudTrack.artist || unknownArtist,
                 url: soundcloudTrack.webpage_url || soundcloudTrack.url,
                 duration: soundcloudTrack.duration || 0,
-                thumbnail: soundcloudTrack.thumbnail,
+                thumbnail: soundcloudTrack.thumbnail || (soundcloudTrack.thumbnails && soundcloudTrack.thumbnails.length > 0 ? soundcloudTrack.thumbnails[soundcloudTrack.thumbnails.length - 1].url : null),
                 platform: 'soundcloud',
                 type: 'track',
                 id: soundcloudTrack.id,

@@ -235,6 +235,7 @@ class Spotify {
                 spotifyUrl: spotifyTrack.external_urls?.spotify,
                 duration: Math.floor(spotifyTrack.duration_ms / 1000),
                 thumbnail: spotifyTrack.album?.images?.[0]?.url,
+                thumbnails: spotifyTrack.album?.images || [],
                 platform: 'spotify',
                 type: 'track',
                 id: spotifyTrack.id,
