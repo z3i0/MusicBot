@@ -2,6 +2,11 @@ const youtubedl = require('youtube-dl-exec');
 const config = require('../config');
 const LanguageManager = require('./LanguageManager');
 
+// In-memory cache for search results to improve speed
+const searchCache = new Map();
+const infoCache = new Map();
+const CACHE_TTL = 30 * 60 * 1000; // 30 minutes
+
 class YouTube {
     // yt-dlp için ortak parametreleri döndüren yardımcı fonksiyon
     static getYtDlpOptions(extraOptions = {}) {
@@ -13,6 +18,9 @@ class YouTube {
                 'referer:youtube.com',
                 'user-agent:Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
             ],
+            // Optimization flags
+            noPlaylist: true,
+            quiet: true,
             ...extraOptions
         };
 
@@ -28,6 +36,15 @@ class YouTube {
 
     static async search(query, limit = 1, guildId = null) {
         try {
+            // Check cache
+            const cacheKey = `${limit}:${query}`;
+            if (searchCache.has(cacheKey)) {
+                const cached = searchCache.get(cacheKey);
+                if (Date.now() - cached.timestamp < CACHE_TTL) {
+                    return cached.data;
+                }
+                searchCache.delete(cacheKey);
+            }
 
             // If it's already a YouTube URL, get info directly
             if (this.isYouTubeURL(query)) {
@@ -38,22 +55,26 @@ class YouTube {
             // Use yt-dlp for YouTube search
             const searchQuery = `ytsearch${limit}:${query}`;
 
-            const results = await youtubedl(searchQuery, this.getYtDlpOptions({
+            // Optimization: If limit is 1, don't use flatPlaylist so we get full metadata (like duration) in one go
+            // If limit > 1, we use flatPlaylist for speed and fetch details only if necessary
+            const searchOptions = {
                 dumpSingleJson: true,
-                flatPlaylist: true,
-            }));
+                flatPlaylist: limit > 1,
+                playlistEnd: limit,
+                noPlaylist: true
+            };
 
-            if (!results || !results.entries) {
+            const results = await youtubedl(searchQuery, this.getYtDlpOptions(searchOptions));
 
+            if (!results || !results.entries || results.entries.length === 0) {
                 return [];
             }
 
             const tracks = [];
-            for (const item of results.entries.slice(0, limit)) {
+            const resultsToProcess = results.entries.slice(0, limit);
+
+            for (const item of resultsToProcess) {
                 try {
-                    // Debug: log item structure
-
-
                     const unknownTitle = guildId ? await LanguageManager.getTranslation(guildId, 'youtube.unknown_title') : 'Unknown Title';
                     const unknownArtist = guildId ? await LanguageManager.getTranslation(guildId, 'youtube.unknown_artist') : 'Unknown Artist';
 
@@ -70,15 +91,23 @@ class YouTube {
                         views: item.view_count,
                         uploadDate: item.upload_date,
                         description: item.description,
+                        // Captured stream info for immediate playback if available (only in full info mode, limit=1)
+                        streamInfo: (limit === 1 && item.url && item.url !== item.webpage_url) ? {
+                            url: item.url,
+                            type: item.acodec && item.acodec.includes('opus') ? 'opus' : 'arbitrary',
+                            duration: item.duration || 0,
+                            bitrate: item.abr || item.tbr || 0,
+                            format: item.format,
+                            httpHeaders: item.http_headers || {}
+                        } : null
                     };
 
-                    // If duration is missing from search, try to get it from getInfo
-                    if (!track.duration || track.duration === 0) {
-
+                    // Only fetch additional info if duration is missing and we really need it
+                    // In single search (limit=1), we turned off flatPlaylist, so duration should already be there.
+                    if (limit === 1 && (!track.duration || track.duration === 0)) {
                         const detailedInfo = await this.getInfo(track.url, guildId);
                         if (detailedInfo && detailedInfo.duration) {
                             track.duration = detailedInfo.duration;
-
                         }
                     }
 
@@ -88,20 +117,36 @@ class YouTube {
                 }
             }
 
+            // Save to cache
+            if (tracks.length > 0) {
+                searchCache.set(cacheKey, {
+                    data: tracks,
+                    timestamp: Date.now()
+                });
+            }
 
             return tracks;
-
         } catch (error) {
+            console.error('YouTube Search Error:', error);
             return [];
         }
     }
 
     static async getInfo(url, guildId = null) {
         try {
+            // Check cache
+            if (infoCache.has(url)) {
+                const cached = infoCache.get(url);
+                if (Date.now() - cached.timestamp < CACHE_TTL) {
+                    return cached.data;
+                }
+                infoCache.delete(url);
+            }
 
             const info = await youtubedl(url, this.getYtDlpOptions({
                 dumpSingleJson: true,
                 preferFreeFormats: true,
+                skipDownload: true
             }));
 
             if (!info) {
@@ -126,11 +171,24 @@ class YouTube {
                 uploadDate: info.upload_date,
                 description: info.description,
                 formats: info.formats,
+                // Captured stream info for immediate playback
+                streamInfo: info.url ? {
+                    url: info.url,
+                    type: info.acodec && info.acodec.includes('opus') ? 'opus' : 'arbitrary',
+                    duration: info.duration || 0,
+                    bitrate: info.abr || info.tbr || 0,
+                    format: info.format,
+                    httpHeaders: info.http_headers || {}
+                } : null
             };
 
+            // Save to cache
+            infoCache.set(url, {
+                data: track,
+                timestamp: Date.now()
+            });
 
             return track;
-
         } catch (error) {
             return null;
         }
@@ -138,8 +196,6 @@ class YouTube {
 
     static async getStream(url, guildId = null, startSeconds = 0) {
         try {
-
-
             if (!url) {
                 const errorMsg = guildId ? await LanguageManager.getTranslation(guildId, 'youtube.url_required') : 'URL is required';
                 throw new Error(errorMsg);
@@ -177,7 +233,6 @@ class YouTube {
                 format: info.format,
                 httpHeaders: info.http_headers || {}
             };
-
         } catch (error) {
             throw error;
         }
@@ -185,7 +240,6 @@ class YouTube {
 
     static async getPlaylist(url, guildId = null) {
         try {
-
             const info = await youtubedl(url, this.getYtDlpOptions({
                 dumpSingleJson: true,
                 flatPlaylist: true,
@@ -244,7 +298,6 @@ class YouTube {
                 platform: 'youtube',
                 type: 'playlist',
             };
-
         } catch (error) {
             return null;
         }
@@ -268,27 +321,20 @@ class YouTube {
 
     static parseDuration(durationString) {
         if (!durationString) return 0;
-
-        // Handle formats like "3:45", "1:23:45", etc.
         const parts = durationString.split(':').reverse();
         let seconds = 0;
-
         for (let i = 0; i < parts.length; i++) {
             seconds += parseInt(parts[i]) * Math.pow(60, i);
         }
-
         return seconds;
     }
 
     static formatDuration(seconds) {
         if (!seconds || seconds === 0) return '0:00';
-
-        // Ensure we work with integers to avoid floating point errors
         const totalSeconds = Math.floor(Number(seconds) || 0);
         const hours = Math.floor(totalSeconds / 3600);
         const minutes = Math.floor((totalSeconds % 3600) / 60);
         const remainingSeconds = totalSeconds % 60;
-
         if (hours > 0) {
             return `${hours}:${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
         } else {
@@ -297,14 +343,7 @@ class YouTube {
     }
 
     static async getRelatedVideos(videoId, limit = 5) {
-        try {
-            // This would implement getting related videos
-            // For now, return empty array as YouTube API v3 doesn't provide related videos
-
-            return [];
-        } catch (error) {
-            return [];
-        }
+        return [];
     }
 
     static extractVideoId(url) {
@@ -313,12 +352,10 @@ class YouTube {
             /youtube\.com\/embed\/([a-zA-Z0-9_-]+)/,
             /youtube\.com\/v\/([a-zA-Z0-9_-]+)/,
         ];
-
         for (const pattern of patterns) {
             const match = url.match(pattern);
             if (match) return match[1];
         }
-
         return null;
     }
 
@@ -337,16 +374,11 @@ class YouTube {
 
     static async validateUrl(url) {
         try {
-            if (!this.isYouTubeURL(url)) {
-                return false;
-            }
-
-            // Try to get basic info to validate
+            if (!this.isYouTubeURL(url)) return false;
             const info = await youtubedl(url, this.getYtDlpOptions({
                 dumpSingleJson: true,
                 skipDownload: true,
             }));
-
             return !!info && !!info.title;
         } catch (error) {
             return false;
