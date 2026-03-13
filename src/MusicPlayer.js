@@ -645,13 +645,12 @@ class MusicPlayer {
             if (track.platform === 'youtube' || track.platform === 'spotify' || track.platform === 'soundcloud') {
                 const youtubedl = require('youtube-dl-exec');
 
-                await youtubedl(downloadUrl, {
+                const ytdlOptions = {
                     output: filepath,
                     format: config.ytdl.format || 'bestaudio/best',
                     noCheckCertificates: true,
                     noWarnings: true,
                     preferFreeFormats: true,
-                    cookies: config.ytdl.cookiesFile,
                     addHeader: [
                         'referer:youtube.com',
                         'user-agent:Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
@@ -662,7 +661,15 @@ class MusicPlayer {
                     extractAudio: true,
                     audioFormat: 'opus',
                     ffmpegLocation: ffmpegPath
-                });
+                };
+
+                if (config.ytdl.cookiesFromBrowser) {
+                    ytdlOptions.cookiesFromBrowser = config.ytdl.cookiesFromBrowser;
+                } else if (config.ytdl.cookiesFile) {
+                    ytdlOptions.cookies = config.ytdl.cookiesFile;
+                }
+
+                await youtubedl(downloadUrl, ytdlOptions);
             } else {
                 // For DirectLink - fetch and transcode with FFmpeg
                 const fetch = await ensureFetch();

@@ -49,10 +49,10 @@ module.exports = {
     ytdl: {
         requestOptions: {
             headers: {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36'
             }
         },
-        format: 'bestaudio[ext=webm][acodec=opus]/bestaudio[ext=opus]/bestaudio/best',
+        format: 'bestaudio[acodec=opus]/bestaudio[ext=webm]/bestaudio[ext=m4a]/bestaudio/best',
         filter: 'audioonly',
         quality: 'highestaudio',
         highWaterMark: 1 << 25,
