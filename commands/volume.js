@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, MessageFlags } = require('discord.js');
 const LanguageManager = require('../src/LanguageManager');
 const config = require('../config');
 
@@ -21,14 +21,14 @@ module.exports = {
         if (!player) {
             return interaction.reply({
                 content: await LanguageManager.getTranslation(guildId, 'buttonhandler.no_music_playing'),
-                ephemeral: true
+                flags: [MessageFlags.Ephemeral]
             });
         }
 
         if (!interaction.member.voice.channel || interaction.member.voice.channel.id !== player.voiceChannel.id) {
             return interaction.reply({
                 content: await LanguageManager.getTranslation(guildId, 'buttonhandler.same_channel_required'),
-                ephemeral: true
+                flags: [MessageFlags.Ephemeral]
             });
         }
 
@@ -37,7 +37,7 @@ module.exports = {
         if (newVolume === null) {
             return interaction.reply({
                 content: `🔊 ${await LanguageManager.getTranslation(guildId, 'nowplaying.volume', { volume: player.volume })}`,
-                ephemeral: true
+                flags: [MessageFlags.Ephemeral]
             });
         }
 

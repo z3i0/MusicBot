@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, PermissionFlagsBits } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, MessageFlags, PermissionFlagsBits } = require('discord.js');
 const { JsonDB } = require('node-json-db');
 const fs = require('fs');
 const path = require('path');
@@ -19,14 +19,14 @@ module.exports = {
             if (!interaction.member.permissions.has(PermissionFlagsBits.ManageGuild)) {
                 const noPermissionTitle = await LanguageManager.getTranslation(interaction.guild.id, 'commands.language.errortitle');
                 const noPermissionDesc = await LanguageManager.getTranslation(interaction.guild.id, 'commands.language.permission_required');
-                
+
                 const errorEmbed = new EmbedBuilder()
                     .setTitle(noPermissionTitle)
                     .setDescription(noPermissionDesc)
                     .setColor('#ff0000')
                     .setTimestamp();
-                
-                return await interaction.reply({ embeds: [errorEmbed], ephemeral: true });
+
+                return await interaction.reply({ embeds: [errorEmbed], flags: [MessageFlags.Ephemeral] });
             }
 
             const guildId = interaction.guild.id;
@@ -110,7 +110,7 @@ module.exports = {
             if (interaction.deferred || interaction.replied) {
                 await interaction.editReply({ embeds: [errorEmbed] });
             } else {
-                await interaction.reply({ embeds: [errorEmbed], ephemeral: true });
+                await interaction.reply({ embeds: [errorEmbed], flags: [MessageFlags.Ephemeral] });
             }
         }
     },
@@ -122,14 +122,14 @@ module.exports = {
             if (!interaction.member.permissions.has(PermissionFlagsBits.ManageGuild)) {
                 const noPermissionTitle = await LanguageManager.getTranslation(interaction.guild.id, 'commands.language.errortitle');
                 const noPermissionDesc = '❌ Bu butonu kullanmak için **Sunucuyu Yönet** yetkisine sahip olmalısın!';
-                
+
                 const errorEmbed = new EmbedBuilder()
                     .setTitle(noPermissionTitle)
                     .setDescription(noPermissionDesc)
                     .setColor('#ff0000')
                     .setTimestamp();
-                
-                return await interaction.reply({ embeds: [errorEmbed], ephemeral: true });
+
+                return await interaction.reply({ embeds: [errorEmbed], flags: [MessageFlags.Ephemeral] });
             }
 
             const guildId = interaction.guild.id;
