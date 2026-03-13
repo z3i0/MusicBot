@@ -5,7 +5,10 @@ module.exports = {
     description: "Shows the bot's response speed",
     async execute(message, args, client) {
         // Send a temporary message to calculate latency
-        const sent = await message.reply("🏓 Calculating ping...");
+        const sent = await message.reply({
+            content: "🏓 Calculating ping...",
+            allowedMentions: { repliedUser: false }
+        });
 
         // Calculate latencies
         const messageLatency = sent.createdTimestamp - message.createdTimestamp;
@@ -26,6 +29,10 @@ module.exports = {
             .setTimestamp();
 
         // Edit the temporary message with the results
-        await sent.edit({ content: "", embeds: [embed] });
+        await sent.edit({ 
+            content: null, 
+            embeds: [embed],
+            allowedMentions: { repliedUser: false } 
+        });
     },
 };
