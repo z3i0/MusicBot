@@ -19,8 +19,14 @@ process.on('unhandledRejection', (reason, promise) => {
   console.error('Unhandled Rejection at:', promise, 'reason:', reason);
 });
 
-process.on('uncaughtException', (err, origin) => {
-  console.error(`Caught exception: ${err}\n` + `Exception origin: ${origin}`);
+process.on('uncaughtException', (error, origin) => {
+  console.error(`Caught exception: ${error}\n` + `Exception origin: ${origin}`);
+
+  // Specific Discord API error handling (Unknown interaction, Interaction already acknowledged)
+  if (error.code === 10062 || error.code === 40060) {
+    console.log(chalk?.yellow ? chalk.yellow('ℹ️ Discord interaction error handled, continuing...') : 'ℹ️ Discord interaction error handled, continuing...');
+    return;
+  }
 });
 
 
@@ -317,7 +323,9 @@ module.exports = async function runSingleBot(botRow) {
         await command.execute(message, args, client);
       } catch (err) {
         console.error(err);
-        message.reply("⚠️ Error executing command.");
+        try {
+          await message.reply("⚠️ Error executing command.");
+        } catch (replyErr) { }
       }
 
       return;
@@ -335,7 +343,9 @@ module.exports = async function runSingleBot(botRow) {
       await command.execute(message, args, client);
     } catch (err) {
       console.error(err);
-      message.reply("⚠️ Error executing command.");
+      try {
+        await message.reply("⚠️ Error executing command.");
+      } catch (replyErr) { }
     }
   });
 
