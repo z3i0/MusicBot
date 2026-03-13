@@ -647,7 +647,7 @@ class MusicPlayer {
 
                 await youtubedl(downloadUrl, {
                     output: filepath,
-                    format: 'bestaudio ',
+                    format: config.ytdl.format || 'bestaudio/best',
                     noCheckCertificates: true,
                     noWarnings: true,
                     preferFreeFormats: true,
@@ -660,7 +660,8 @@ class MusicPlayer {
                         'ffmpeg': ['-c:a', 'libopus', '-b:a', '128k']
                     },
                     extractAudio: true,
-                    audioFormat: 'opus'
+                    audioFormat: 'opus',
+                    ffmpegLocation: ffmpegPath
                 });
             } else {
                 // For DirectLink - fetch and transcode with FFmpeg

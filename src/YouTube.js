@@ -13,7 +13,8 @@ class YouTube {
                 'referer:youtube.com',
                 'user-agent:Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
             ],
-            ...extraOptions
+            ...extraOptions,
+            ffmpegLocation: require('ffmpeg-static')
         };
 
         // Cookie ayarlarını ekle (eğer varsa)
@@ -148,7 +149,7 @@ class YouTube {
             // Get stream URL with simple format
             const info = await youtubedl(url, this.getYtDlpOptions({
                 dumpSingleJson: true,
-                format: 'bestaudio/best',
+                format: config.ytdl.format || 'bestaudio/best',
             }));
 
             if (!info || !info.url) {
