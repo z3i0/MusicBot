@@ -17,24 +17,33 @@ module.exports = {
 
             // Validation: user provided a query
             if (!query) {
-                return message.reply("❌ Please provide a song name or URL to play!");
+                return message.reply({
+                    content: "❌ Please provide a song name or URL to play!",
+                    allowedMentions: { repliedUser: false }
+                });
             }
 
             // Validation: user in a voice channel
             if (!member.voice.channel) {
-                return message.reply("🎧 You must be in a voice channel to play music!");
+                return message.reply({
+                    content: "🎧 You must be in a voice channel to play music!",
+                    allowedMentions: { repliedUser: false }
+                });
             }
 
             // Validate permissions and voice channel
             const validationResult = await this.validateRequest(message, member, guild);
             if (!validationResult.success) {
-                return message.reply(validationResult.message);
+                return message.reply({
+                    content: validationResult.message,
+                    allowedMentions: { repliedUser: false }
+                });
             }
 
             // Get or create player
             let player = client.players.get(guild.id);
             if (!player) {
-                player = new MusicPlayer(guild, channel, member.voice.channel);
+                player = new MusicPlayer(guild, channel, member.voice.channel, client.config.slug);
                 client.players.set(guild.id, player);
             }
 
@@ -50,13 +59,19 @@ module.exports = {
                     { query }
                 ).catch(() => null)) || `🔍 Searching for **${query}**...`;
 
-            const searchingMessage = await message.reply(searchingMsg);
+            const searchingMessage = await message.reply({
+                content: searchingMsg,
+                allowedMentions: { repliedUser: false }
+            });
 
             // Fetch track data
             const trackData = await this.getTrackData(query, guild.id);
 
             if (!trackData.success) {
-                return searchingMessage.edit(trackData.message || "❌ No results found.");
+                return searchingMessage.edit({
+                    content: trackData.message || "❌ No results found.",
+                    allowedMentions: { repliedUser: false }
+                });
             }
 
             // Initialize embed manager if not ready
@@ -73,16 +88,26 @@ module.exports = {
             );
 
             if (!embedResult.success) {
-                return searchingMessage.edit(embedResult.message);
+                return searchingMessage.edit({
+                    content: embedResult.message,
+                    allowedMentions: { repliedUser: false }
+                });
             }
 
             // Update success message
-            await searchingMessage.edit("✅ Added to the queue!");
+            const addedMsg = await LanguageManager.getTranslation(guild.id, "commands.play.added_to_queue").catch(() => "✅ Added to the queue!");
+            await searchingMessage.edit({
+                content: addedMsg,
+                allowedMentions: { repliedUser: false }
+            });
 
         } catch (error) {
             console.error(chalk.red("❌ Error executing play command:"), error);
             try {
-                await message.reply("⚠️ An error occurred while trying to play the track.");
+                await message.reply({
+                    content: "⚠️ An error occurred while trying to play the track.",
+                    allowedMentions: { repliedUser: false }
+                });
             } catch (replyErr) {
                 console.error("Error sending fallback message:", replyErr);
             }

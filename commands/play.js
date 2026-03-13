@@ -36,7 +36,7 @@ module.exports = {
             // Music player al veya oluştur
             let player = client.players.get(guild.id);
             if (!player) {
-                player = new MusicPlayer(guild, channel, member.voice.channel);
+                player = new MusicPlayer(guild, channel, member.voice.channel, client.config.slug);
                 client.players.set(guild.id, player);
             }
 
