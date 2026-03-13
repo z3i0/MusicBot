@@ -2,6 +2,7 @@ const { EmbedBuilder } = require("discord.js");
 
 module.exports = {
     name: "ping",
+    aliases: ["بينج"],
     description: "Shows the bot's response speed",
     async execute(message, args, client) {
         // Send a temporary message to calculate latency
@@ -29,10 +30,10 @@ module.exports = {
             .setTimestamp();
 
         // Edit the temporary message with the results
-        await sent.edit({ 
-            content: null, 
+        await sent.edit({
+            content: null,
             embeds: [embed],
-            allowedMentions: { repliedUser: false } 
+            allowedMentions: { repliedUser: false }
         });
     },
 };
