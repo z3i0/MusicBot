@@ -142,6 +142,19 @@ class MusicPlayer {
         // Events setup
         this.setupEvents();
 
+        // Load persistent settings (volume, loop, etc.) from previous session if available
+        try {
+            const previousState = PlayerStateManager.getState(this.botId, this.guild.id);
+            if (previousState) {
+                this.volume = typeof previousState.volume === 'number' ? previousState.volume : this.volume;
+                this.loop = previousState.loop ?? this.loop;
+                this.shuffle = previousState.shuffle ?? this.shuffle;
+                this.autoplay = previousState.autoplay ?? this.autoplay;
+            }
+        } catch (e) {
+            console.error('⚠️ Could not load previous player settings:', e.message);
+        }
+
         // Start state syncing automatically to ensure restoration works even after crash
         this.startStateSync();
     }
@@ -1416,7 +1429,7 @@ class MusicPlayer {
 
         this.stopStateSync();
         if (this.guild?.id) {
-            PlayerStateManager.removeState(this.guild.id).catch(() => { });
+            PlayerStateManager.removeState(this.botId, this.guild.id).catch(() => { });
         }
 
         // Clear track timer
@@ -1705,7 +1718,7 @@ class MusicPlayer {
 
             this.clearInactivityTimer(false);
             if (this.guild?.id) {
-                await PlayerStateManager.removeState(this.guild.id);
+                await PlayerStateManager.removeState(this.botId, this.guild.id);
             }
 
             setTimeout(() => {

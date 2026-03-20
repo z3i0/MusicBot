@@ -120,7 +120,7 @@ module.exports = async function runSingleBot(botRow) {
               `⚠️ Guild ${guildId} not found or not accessible, removing state...`
             )
           );
-          await PlayerStateManager.removeState(guildId);
+          await PlayerStateManager.removeState(client.config.slug, guildId);
           continue;
         }
 
@@ -128,7 +128,13 @@ module.exports = async function runSingleBot(botRow) {
         const textChannelId = state.textChannelId;
 
         if (!voiceChannelId || !textChannelId) {
-          await PlayerStateManager.removeState(guildId);
+          await PlayerStateManager.removeState(client.config.slug, guildId);
+          continue;
+        }
+
+        // Check for active session data before restoring (skip if it's only saved settings)
+        const hasSessionData = state.currentTrack || (Array.isArray(state.queue) && state.queue.length > 0);
+        if (!hasSessionData) {
           continue;
         }
 
@@ -161,7 +167,7 @@ module.exports = async function runSingleBot(botRow) {
               `⚠️ Invalid channels for guild ${guild.name}, removing state...`
             )
           );
-          await PlayerStateManager.removeState(guildId);
+          await PlayerStateManager.removeState(client.config.slug, guildId);
           continue;
         }
 
@@ -184,7 +190,7 @@ module.exports = async function runSingleBot(botRow) {
           );
           client.players.delete(guildId);
           player.cleanup();
-          await PlayerStateManager.removeState(guildId);
+          await PlayerStateManager.removeState(client.config.slug, guildId);
         }
       } catch (error) {
         console.error(
@@ -193,7 +199,7 @@ module.exports = async function runSingleBot(botRow) {
           ),
           error.message
         );
-        await PlayerStateManager.removeState(guildId);
+        await PlayerStateManager.removeState(client.config.slug, guildId);
       }
     }
   }

@@ -63,7 +63,7 @@ class PlayerStateManager {
             if (!db.bots) db.bots = {};
             if (!db.bots[botId]) db.bots[botId] = { players: {} };
             if (!db.bots[botId].players) db.bots[botId].players = {};
-            
+
             db.bots[botId].players[guildId] = payload;
             this.writeDatabase(db);
         } catch (error) {
@@ -106,11 +106,21 @@ class PlayerStateManager {
         try {
             const db = this.readDatabase();
             if (db.bots?.[botId]?.players?.[guildId]) {
-                delete db.bots[botId].players[guildId];
+                const currentData = db.bots[botId].players[guildId];
+
+                // Keep persistent settings but clear session-specific data
+                db.bots[botId].players[guildId] = {
+                    volume: currentData.volume,
+                    loop: currentData.loop,
+                    shuffle: currentData.shuffle,
+                    autoplay: currentData.autoplay,
+                    updatedAt: Date.now()
+                };
+
                 this.writeDatabase(db);
             }
         } catch (error) {
-            // Error handling
+            console.error(`❌ Failed to clear player state for bot ${botId} guild ${guildId}:`, error);
         }
     }
 
@@ -130,7 +140,7 @@ class PlayerStateManager {
     getProtectedCacheFiles() {
         const db = this.readDatabase();
         const protectedFiles = new Set();
-        
+
         const processPlayer = (state) => {
             if (!state) return;
             if (Array.isArray(state.downloadedFiles)) {
