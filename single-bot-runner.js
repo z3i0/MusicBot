@@ -4,6 +4,7 @@ const {
   Collection,
   Events,
   ActivityType,
+  PermissionFlagsBits
 } = require("discord.js");
 const PlayerStateManager = require("./src/PlayerStateManager");
 const MusicPlayer = require("./src/MusicPlayer");
@@ -339,6 +340,11 @@ module.exports = async function runSingleBot(botRow) {
 
       if (!command) return;
 
+      // Check for send messages permission
+      if (message.guild && !message.channel.permissionsFor(client.user)?.has(PermissionFlagsBits.SendMessages)) {
+        return;
+      }
+
 
 
       try {
@@ -346,7 +352,7 @@ module.exports = async function runSingleBot(botRow) {
       } catch (err) {
         console.error(err);
         try {
-          await message.reply("⚠️ Error executing command.");
+          // await message.reply("⚠️ Error executing command.");
         } catch (replyErr) { }
       }
 
@@ -361,14 +367,17 @@ module.exports = async function runSingleBot(botRow) {
     );
     if (!command) return;
 
-
+    // Check for send messages permission
+    if (message.guild && !message.channel.permissionsFor(client.user)?.has(PermissionFlagsBits.SendMessages)) {
+      return;
+    }
 
     try {
       await command.execute(message, args, client);
     } catch (err) {
       console.error(err);
       try {
-        await message.reply("⚠️ Error executing command.");
+        // await message.reply("⚠️ Error executing command.");
       } catch (replyErr) { }
     }
   });
