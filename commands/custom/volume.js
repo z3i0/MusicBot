@@ -75,11 +75,20 @@ module.exports = {
                 )
             );
 
-        await message.reply({
-            flags: MessageFlags.IsComponentsV2,
-            components: [container],
-            allowedMentions: { repliedUser: false }
-        });
+
+        // let emoji;
+
+        // if (newVolume === 0) emoji = '🔇';
+        // else if (newVolume < 40) emoji = '🔈';
+        // else if (newVolume < 80) emoji = '🔉';
+        // else emoji = '🔊';
+
+        await message.react('✅');
+        //  await message.reply({
+        //    flags: MessageFlags.IsComponentsV2,
+        //    components: [container],
+        //     allowedMentions: { repliedUser: false }
+        //  });
 
         if (client.musicEmbedManager) {
             client.musicEmbedManager.updateNowPlayingEmbed(player);
