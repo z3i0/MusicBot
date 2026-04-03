@@ -104,6 +104,12 @@ class MusicEmbedManager {
         const remainingTracks = tracks.slice(1);
         const messageText = await this.createQueueAdditionMessage(remainingTracks, member.guild.id, isPlaylist);
         try {
+            if (interaction && typeof interaction.react === 'function') {
+                // Legacy message-based command: react instead of sending a message
+                await interaction.react('✅').catch(() => { });
+                return;
+            }
+
             const infoMessage = await player.textChannel.send({ content: messageText });
             setTimeout(async () => {
                 try { await infoMessage.delete(); } catch { }
@@ -149,19 +155,28 @@ class MusicEmbedManager {
         let infoMessage;
         if (interaction instanceof BaseInteraction) {
             if (interaction.deferred || interaction.replied) {
+                // If it's a search interaction response, we might want to update the existing message
+                // but usually interactions prefer a response.
+                // For slash commands, we still use the text reply.
                 infoMessage = await interaction.editReply({ content: messageText, components: [] });
             } else {
                 infoMessage = await interaction.reply({ content: messageText, flags: [1 << 6] });
             }
+        } else if (interaction && typeof interaction.react === 'function') {
+            // Legacy message-based command: react instead of sending a message
+            await interaction.react('✅').catch(() => { });
+            return { success: true, message: 'Added to queue', isNewEmbed: false, reacted: true };
         } else if (interaction && typeof interaction.reply === 'function') {
             infoMessage = await interaction.reply({ content: messageText, allowedMentions: { repliedUser: false } });
         } else {
             infoMessage = await player.textChannel.send({ content: messageText });
         }
 
-        setTimeout(async () => {
-            try { await infoMessage.delete(); } catch { }
-        }, 10000);
+        if (infoMessage) {
+            setTimeout(async () => {
+                try { await infoMessage.delete(); } catch { }
+            }, 10000);
+        }
 
         return { success: true, message: 'Added to queue', isNewEmbed: false };
     }

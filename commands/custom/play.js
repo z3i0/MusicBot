@@ -94,12 +94,12 @@ module.exports = {
                 });
             }
 
-            // Update success message
-            const addedMsg = await LanguageManager.getTranslation(guild.id, "commands.play.added_to_queue").catch(() => "✅ Added to the queue!");
-            await searchingMessage.edit({
-                content: addedMsg,
-                allowedMentions: { repliedUser: false }
-            });
+            // Use reaction for success if handled by EmbedManager
+            if (embedResult.success) {
+                // Delete searching message if still exists
+                await searchingMessage.delete().catch(() => {});
+                return;
+            }
 
         } catch (error) {
             console.error(chalk.red("❌ Error executing play command:"), error);
