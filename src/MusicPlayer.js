@@ -127,7 +127,7 @@ class MusicPlayer {
 
         // Inactivity timeout
         this.inactivityTimer = null;
-        this.inactivityTimeoutMs = 2 * 60 * 1000;
+        this.inactivityTimeoutMs = 30 * 60 * 1000; // Increased to 30 minutes for stability
 
         // Local file caching
         this.currentDownloadedFile = null; // Path to currently playing downloaded file
@@ -393,6 +393,11 @@ class MusicPlayer {
 
     async connect() {
         try {
+            // Check if already connected and ready
+            if (this.connection && this.connection.state.status === VoiceConnectionStatus.Ready) {
+                return true;
+            }
+
             // Wait for guild's WebSocket to be ready (critical for sharding)
             if (!this.guild.voiceAdapterCreator) {
                 // Wait up to 10 seconds for the adapter to become available
@@ -1126,6 +1131,9 @@ class MusicPlayer {
             // Play the resource
             this.audioPlayer.play(this.resource);
 
+            // Update professional voice channel status
+            this.updateChannelStatus();
+
             if (this.pauseReasons.size > 0) {
                 console.log(`⏸️  Paused due to: ${Array.from(this.pauseReasons).join(', ')}`);
                 this.audioPlayer.pause();
@@ -1321,6 +1329,7 @@ class MusicPlayer {
             if (paused) {
                 this.paused = true;
                 this.scheduleStatePersist('pause', 0);
+                this.updateChannelStatus();
                 return true;
             }
         }
@@ -1344,6 +1353,7 @@ class MusicPlayer {
             if (resumed) {
                 this.paused = false;
                 this.scheduleStatePersist('resume', 0);
+                this.updateChannelStatus();
                 return true;
             }
             return false;
@@ -1469,6 +1479,9 @@ class MusicPlayer {
         if (this.audioPlayer) {
             this.audioPlayer.stop(true);
         }
+
+        // Clear professional voice channel status
+        this.updateChannelStatus();
         // this.disconnect();
     }
 
@@ -1671,6 +1684,11 @@ class MusicPlayer {
 
             this.resource = null;
             this.expectedTrackEndTs = null;
+
+            // Update channel status (clearing if no next track)
+            if (this.queue.length === 0) {
+                this.updateChannelStatus();
+            }
             this.startTime = null;
             this.pausedTime = 0;
             this.lastPlaybackPosition = 0;
@@ -1716,20 +1734,16 @@ class MusicPlayer {
                 await this.showQueueCompleted();
             }
 
+            // Clear professional voice channel status
+            this.updateChannelStatus();
+
             this.clearInactivityTimer(false);
             if (this.guild?.id) {
                 await PlayerStateManager.removeState(this.botId, this.guild.id);
             }
 
-            setTimeout(() => {
-                if (this.queue.length === 0 && !this.currentTrack) {
-                    this.cleanup();
-                    const clientInstance = this.guild?.client;
-                    if (clientInstance?.players) {
-                        clientInstance.players.delete(this.guild.id);
-                    }
-                }
-            }, 10000);
+            // Start the inactivity timer so the bot stays for the configured duration (30 mins)
+            this.startInactivityTimer();
         } finally {
             this.isTransitioning = false;
             this.skipRequested = false;
@@ -2397,6 +2411,9 @@ class MusicPlayer {
 
     cleanup(isShutdown = false) {
         try {
+            // Clear professional voice channel status before cleaning up everything
+            this.updateChannelStatus();
+
             this.clearInactivityTimer(false);
             this.stopStateSync();
 
@@ -2448,7 +2465,7 @@ class MusicPlayer {
                 this.connection.removeAllListeners();
                 if (this.connection.state && this.connection.state.status !== 'destroyed') {
                     try {
-                        // this.connection.destroy();
+                        this.connection.destroy();
                     } catch (error) {
                         console.error('Error destroying connection:', error);
                     }
@@ -2516,6 +2533,52 @@ class MusicPlayer {
         };
     }
 
+    /**
+     * Professional Voice Channel Status Update
+     * Sets the actual Discord voice channel status to the playing song
+     */
+    async updateChannelStatus() {
+        if (!this.voiceChannel || !this.guild || !this.guild.client) return;
+
+        try {
+            const { Routes } = require('discord.js');
+            const client = this.guild.client;
+
+            // Professionally format the status string
+            let statusString = '';
+            if (this.currentTrack) {
+                const title = this.currentTrack.title || 'Music';
+                const artist = this.currentTrack.artist || 'Unknown';
+
+                if (this.paused) {
+                    statusString = `⏸️ Paused: ${title}`;
+                } else {
+                    statusString = `🎶 Playing: ${title}`;
+                }
+
+                if (artist && artist !== 'Unknown') {
+                    statusString += ` | ${artist}`;
+                }
+
+                if (statusString.length > 100) {
+                    statusString = statusString.substring(0, 97) + '...';
+                }
+            }
+
+            console.log(`📡 [VoiceStatus] Sending direct API request: "${statusString}"`);
+
+            // Direct Discord API call for maximum reliability
+            // Final direct API path fix for maximum compatibility
+            await client.rest.put(
+                `/channels/${this.voiceChannel.id}/voice-status`,
+                { body: { status: statusString } }
+            );
+
+        } catch (error) {
+            console.error('[VoiceStatus] API Error:', error.message);
+        }
+    }
+
     // Clean up resources when destroying the player
     destroy() {
         // Clear track timer
@@ -2537,7 +2600,12 @@ class MusicPlayer {
         }
 
         if (this.connection) {
-            // this.connection.destroy();
+            try {
+                if (this.connection.state.status !== 'destroyed') {
+                    this.connection.destroy();
+                }
+            } catch (error) {
+            }
         }
     }
 }
