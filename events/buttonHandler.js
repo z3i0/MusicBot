@@ -103,7 +103,7 @@ module.exports = {
           break;
 
         case "music_stop":
-          await this.handleStop(interaction, player, client, requesterId);
+          await this.handleStop(interaction, player, requesterId);
           break;
 
         case "music_queue":
@@ -291,17 +291,6 @@ module.exports = {
         content: await LanguageManager.getTranslation(
           interaction.guild?.id,
           "buttonhandler.no_song_playing"
-        ),
-        flags: [1 << 6],
-      });
-    }
-
-    // Sırada müzik yoksa atlanamaz
-    if (player.queue.length === 0) {
-      return await interaction.reply({
-        content: await LanguageManager.getTranslation(
-          interaction.guild?.id,
-          "buttonhandler.no_songs_to_skip"
         ),
         flags: [1 << 6],
       });
