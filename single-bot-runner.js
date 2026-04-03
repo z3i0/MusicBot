@@ -339,6 +339,62 @@ module.exports = async function runSingleBot(botRow) {
 
       if (!command) return;
 
+      // --- Multi-Bot Orchestration Logic ---
+      const isPlayCommand = ["play", "p", "شغل", "ش"].includes(commandName);
+      const isControlCommand = ["stop", "skip", "pause", "resume", "leave", "volume", "v"].includes(commandName);
+      const guildId = message.guild.id;
+      const player = client.players.get(guildId);
+
+      if (isPlayCommand) {
+        // 1. If I'm already playing music, I ignore the play command (let another idle bot take it)
+        if (player && player.currentTrack) return;
+
+        // 2. I'm idle. Check if there are other bots with LOWER IDs that are also idle in this guild.
+        // We use playerState.json as a shared cache for bot statuses.
+        try {
+          const db = PlayerStateManager.readDatabase();
+          const botsInChannel = [];
+
+          // Find all bots that have been active in this guild recently
+          if (db.bots) {
+            for (const [botId, botData] of Object.entries(db.bots)) {
+              if (botData.players && botData.players[guildId]) {
+                botsInChannel.push({ id: botId, data: botData.players[guildId] });
+              }
+            }
+          }
+
+          // Sort by ID (Priority)
+          // Note: client.config.id is our ID
+          const myId = String(client.config.id);
+          const idleLowerIdBots = botsInChannel.filter(b => {
+            const bId = String(b.id);
+            // Is this bot idle? (no currentTrack)
+            const isIdle = !b.data.currentTrack;
+            return isIdle && bId < myId;
+          });
+
+          if (idleLowerIdBots.length > 0) {
+            // There's a higher priority bot available, I'll stay silent.
+            return;
+          }
+        } catch (e) {
+          console.error("Orchestration check failed:", e.message);
+        }
+      } else if (isControlCommand) {
+        // For control commands, only respond if I'm the one playing or I'm in the user's voice channel
+        const memberVoiceChannelId = message.member?.voice?.channelId;
+        const botVoiceChannelId = player?.voiceChannel?.id;
+
+        if (!player || !player.currentTrack) return; // I'm not playing anything
+
+        // If I'm in a different voice channel than the user, I shouldn't respond to their skip/stop
+        if (memberVoiceChannelId && botVoiceChannelId && memberVoiceChannelId !== botVoiceChannelId) {
+          return;
+        }
+      }
+      // --- End Orchestration ---
+
       try {
         await command.execute(message, args, client);
       } catch (err) {
@@ -358,6 +414,39 @@ module.exports = async function runSingleBot(botRow) {
       cmd.aliases?.includes(rawName)
     );
     if (!command) return;
+
+    // --- Multi-Bot Orchestration Logic (for Aliases) ---
+    const guildId = message.guild.id;
+    const player = client.players.get(guildId);
+    const isPlayCommand = ["play", "p", "شغل", "ش"].includes(rawName);
+    const isControlCommand = ["stop", "skip", "pause", "resume", "leave", "volume", "v"].includes(rawName);
+
+    if (isPlayCommand) {
+      if (player && player.currentTrack) return;
+      try {
+        const db = PlayerStateManager.readDatabase();
+        const botsInChannel = [];
+        if (db.bots) {
+          for (const [botId, botData] of Object.entries(db.bots)) {
+            if (botData.players && botData.players[guildId]) {
+              botsInChannel.push({ id: botId, data: botData.players[guildId] });
+            }
+          }
+        }
+        const myId = String(client.config.id);
+        const idleLowerIdBots = botsInChannel.filter(b => {
+          const bId = String(b.id);
+          return !b.data.currentTrack && bId < myId;
+        });
+        if (idleLowerIdBots.length > 0) return;
+      } catch (e) { }
+    } else if (isControlCommand) {
+      const memberVoiceChannelId = message.member?.voice?.channelId;
+      const botVoiceChannelId = player?.voiceChannel?.id;
+      if (!player || !player.currentTrack) return;
+      if (memberVoiceChannelId && botVoiceChannelId && memberVoiceChannelId !== botVoiceChannelId) return;
+    }
+    // --- End Orchestration ---
 
     try {
       await command.execute(message, args, client);
