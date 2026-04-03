@@ -79,6 +79,12 @@ module.exports = {
     },
 
     async validateRequest(message, member, guild) {
+        // Text channel permissions check
+        const textChannelPermissions = message.channel.permissionsFor(guild.members.me);
+        if (!textChannelPermissions.has(PermissionFlagsBits.SendMessages)) {
+            return { success: false };
+        }
+
         // Voice channel check
         if (!member.voice.channel) {
             const errorMsg = await LanguageManager.getTranslation(guild.id, 'commands.play.voice_channel_required');

@@ -59,6 +59,10 @@ class MusicEmbedManager {
             let firstTrackResult = null;
             const wasIdle = (!player.currentTrack && player.queue.length === 0);
 
+            if (!tracks || tracks.length === 0) {
+                return { success: false, message: 'No tracks found to process' };
+            }
+
             for (let i = 0; i < tracks.length; i++) {
                 const track = { ...tracks[i] };
                 track.requestedBy = member;
@@ -110,7 +114,7 @@ class MusicEmbedManager {
                 return;
             }
 
-            const infoMessage = await player.textChannel.send({ content: messageText });
+            const infoMessage = await player.textChannel.send({ content: messageText || '✅ Added to queue' });
             setTimeout(async () => {
                 try { await infoMessage.delete(); } catch { }
             }, 10000);
@@ -167,9 +171,9 @@ class MusicEmbedManager {
             await interaction.react('✅').catch(() => { });
             return { success: true, message: 'Added to queue', isNewEmbed: false, reacted: true };
         } else if (interaction && typeof interaction.reply === 'function') {
-            infoMessage = await interaction.reply({ content: messageText, allowedMentions: { repliedUser: false } });
+            infoMessage = await interaction.reply({ content: messageText || '✅ Added to queue', allowedMentions: { repliedUser: false } });
         } else {
-            infoMessage = await player.textChannel.send({ content: messageText });
+            infoMessage = await player.textChannel.send({ content: messageText || '✅ Added to queue' });
         }
 
         if (infoMessage) {

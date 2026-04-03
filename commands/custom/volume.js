@@ -17,17 +17,19 @@ module.exports = {
         const player = client.players.get(guildId);
 
         if (!player) {
-            return message.reply({
-                content: await LanguageManager.getTranslation(guildId, "buttonhandler.no_music_playing"),
-                allowedMentions: { repliedUser: false }
-            });
+            // return message.reply({
+            //     content: await LanguageManager.getTranslation(guildId, "buttonhandler.no_music_playing"),
+            //     allowedMentions: { repliedUser: false }
+            // });
+            return;
         }
 
         if (!message.member.voice.channel || message.member.voice.channel.id !== player.voiceChannel.id) {
-            return message.reply({
-                content: await LanguageManager.getTranslation(guildId, "buttonhandler.same_channel_required"),
-                allowedMentions: { repliedUser: false }
-            });
+            // return message.reply({
+            //     content: await LanguageManager.getTranslation(guildId, "buttonhandler.same_channel_required"),
+            //     allowedMentions: { repliedUser: false }
+            // });
+            return;
         }
 
         // View current volume

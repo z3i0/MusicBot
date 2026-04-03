@@ -15,15 +15,16 @@ module.exports = {
 
             // 🛑 No player
             if (!player || !player.currentTrack) {
-                const msg =
-                    (await LanguageManager.getTranslation(
-                        guild.id,
-                        "buttonhandler.no_song_playing"
-                    ).catch(() => null)) || "❌ No song is currently playing!";
-                return message.reply({
-                    content: msg,
-                    allowedMentions: { repliedUser: false }
-                });
+                // const msg =
+                //     (await LanguageManager.getTranslation(
+                //         guild.id,
+                //         "buttonhandler.no_song_playing"
+                //     ).catch(() => null)) || "❌ No song is currently playing!";
+                // return message.reply({
+                //     content: msg,
+                //     allowedMentions: { repliedUser: false }
+                // });
+                return;
             }
 
             // 🛑 Check voice channel

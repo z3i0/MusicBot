@@ -34,10 +34,13 @@ module.exports = {
             // Validate permissions and voice channel
             const validationResult = await this.validateRequest(message, member, guild);
             if (!validationResult.success) {
-                return message.reply({
-                    content: validationResult.message,
-                    allowedMentions: { repliedUser: false }
-                });
+                if (validationResult.message) {
+                    return message.reply({
+                        content: validationResult.message,
+                        allowedMentions: { repliedUser: false }
+                    });
+                }
+                return;
             }
 
             // Get or create player
@@ -97,7 +100,7 @@ module.exports = {
             // Use reaction for success if handled by EmbedManager
             if (embedResult.success) {
                 // Delete searching message if still exists
-                await searchingMessage.delete().catch(() => {});
+                await searchingMessage.delete().catch(() => { });
                 return;
             }
 
@@ -115,6 +118,12 @@ module.exports = {
     },
 
     async validateRequest(message, member, guild) {
+        // Text channel permissions check
+        const textChannelPermissions = message.channel.permissionsFor(guild.members.me);
+        if (!textChannelPermissions.has(PermissionFlagsBits.SendMessages)) {
+            return { success: false };
+        }
+
         // Voice channel check
         if (!member || !member.voice || !member.voice.channel) {
             const errorMsg = await LanguageManager.getTranslation(
@@ -130,11 +139,7 @@ module.exports = {
             !permissions.has(PermissionFlagsBits.Connect) ||
             !permissions.has(PermissionFlagsBits.Speak)
         ) {
-            const errorMsg = await LanguageManager.getTranslation(
-                guild.id,
-                "commands.play.no_permissions"
-            ).catch(() => "❌ I don’t have permission to join or speak in your channel.");
-            return { success: false, message: errorMsg };
+            return { success: false };
         }
 
         // Bot in another channel?
