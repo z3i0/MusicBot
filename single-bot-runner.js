@@ -309,7 +309,14 @@ module.exports = async function runSingleBot(botRow) {
     )
       return;
 
-    const content = message.content.trim();
+    let content = message.content.trim();
+
+    // shorthand volume: v10 -> v 10, v+10 -> v +10
+    const prefixEscaped = (client.prefix || "-").replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const vMatch = content.match(new RegExp(`^(${prefixEscaped})?v([+-]?\\d+)$`, 'i'));
+    if (vMatch) {
+      content = (vMatch[1] || "") + "v " + vMatch[2];
+    }
 
     // PREFIX COMMANDS
     if (content.startsWith(client.prefix)) {
