@@ -134,7 +134,14 @@ module.exports = async function runSingleBot(botRow) {
 
         // Check for active session data before restoring (skip if it's only saved settings)
         const hasSessionData = state.currentTrack || (Array.isArray(state.queue) && state.queue.length > 0);
-        if (!hasSessionData) {
+        const sessionAgeMs = Date.now() - (state.updatedAt || 0);
+        const MAX_SESSION_AGE_MS = 12 * 60 * 60 * 1000; // 12 hours
+
+        if (!hasSessionData || sessionAgeMs > MAX_SESSION_AGE_MS) {
+          if (hasSessionData && sessionAgeMs > MAX_SESSION_AGE_MS) {
+            console.log(chalk.yellow(`⏳ Skipping expired session for guild ${guildId} (last updated ${Math.floor(sessionAgeMs / 3600000)}h ago)`));
+            await PlayerStateManager.removeState(client.config.slug, guildId);
+          }
           continue;
         }
 
@@ -360,6 +367,19 @@ module.exports = async function runSingleBot(botRow) {
         await message.reply("⚠️ Error executing command.");
       } catch (replyErr) { }
     }
+  });
+
+  // Global error handlers to prevent process crashes
+  client.on('error', (error) => {
+    console.error(chalk.red(`❌ Client error for ${client.config.slug}:`), error);
+  });
+
+  process.on('unhandledRejection', (reason, promise) => {
+    console.error(chalk.red('❌ Unhandled Rejection at:'), promise, 'reason:', reason);
+  });
+
+  process.on('uncaughtException', (error) => {
+    console.error(chalk.red('❌ Uncaught Exception:'), error);
   });
 
   // READY event — use Events.ClientReady (this is the fix)
