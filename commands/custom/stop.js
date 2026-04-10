@@ -13,22 +13,13 @@ module.exports = {
             const member = message.member;
             const player = client.players.get(guild.id);
 
-            // 🛑 No player
-            if (!player || !player.currentTrack) {
-                // const msg =
-                //     (await LanguageManager.getTranslation(
-                //         guild.id,
-                //         "buttonhandler.no_song_playing"
-                //     ).catch(() => null)) || "❌ No song is currently playing!";
-                // return message.reply({
-                //     content: msg,
-                //     allowedMentions: { repliedUser: false }
-                // });
+            // 🛑 No player or no track (with fallback for stuck bot in VC)
+            const botChannel = guild.members.me.voice.channel;
+            if (!player || (!player.currentTrack && !botChannel)) {
                 return;
             }
 
             // 🛑 Check voice channel
-            const botChannel = guild.members.me.voice.channel;
             if (!member.voice.channel || (botChannel && member.voice.channel.id !== botChannel.id)) {
                 return message.reply({
                     content: (await LanguageManager.getTranslation(
