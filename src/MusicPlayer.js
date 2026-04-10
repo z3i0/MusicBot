@@ -295,7 +295,11 @@ class MusicPlayer {
         this.recoveryInterval = setInterval(async () => {
             this.recoveryAttempts++;
             if (this.recoveryAttempts > this.maxRecoveryAttempts) {
+                console.error(`🚨 Recovery failed after ${this.maxRecoveryAttempts} attempts in ${this.guild.name}.`);
                 this.stopConnectionRecovery();
+                
+                // Nuclear cleanup if recovery fails - move to next track or stop
+                await this.handleTrackEnd('error');
                 return;
             }
 
@@ -1437,6 +1441,12 @@ class MusicPlayer {
         this.loop = false;
         this.autoplay = false;
 
+        // Reset transition and recovery flags forcefully
+        this.isTransitioning = false;
+        if (this.isRecovering) {
+            this.stopConnectionRecovery();
+        }
+
         this.stopStateSync();
         if (this.guild?.id) {
             PlayerStateManager.removeState(this.botId, this.guild.id).catch(() => { });
@@ -1471,13 +1481,18 @@ class MusicPlayer {
         this.preloadingQueue = [];
 
         this.queue = [];
+        this.currentTrack = null; // Important: Clear current track immediately
         this.pendingEndReason = 'stop';
         this.stopRequested = true;
         this.currentTrackStartOffsetMs = 0;
         this.lastPlaybackPosition = 0;
 
         if (this.audioPlayer) {
-            this.audioPlayer.stop(true);
+            try {
+                this.audioPlayer.stop(true);
+            } catch (e) {
+                console.error("Error stopping audio player:", e.message);
+            }
         }
 
         // Clear professional voice channel status
@@ -1877,9 +1892,14 @@ class MusicPlayer {
             this.currentTrack = this.queue.shift();
             await this.play(null, 0);
         } else {
-            this.currentTrack = null;
+            // Signal track end with error to trigger consistent cleanup logic
+            this.pendingEndReason = 'error';
+            await this.handleTrackEnd('error');
+            
             const errorMsg = await LanguageManager.getTranslation(this.guild.id, 'musicplayer.error_playlist_stopped');
-            await this.textChannel.send(errorMsg);
+            if (this.textChannel) {
+                await this.textChannel.send(errorMsg).catch(() => {});
+            }
         }
     }
 
