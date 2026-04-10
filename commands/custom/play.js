@@ -68,7 +68,7 @@ module.exports = {
             });
 
             // Fetch track data
-            const trackData = await this.getTrackData(query, guild.id);
+            const trackData = await this.getTrackData(query, guild.id, message.author.id);
 
             if (!trackData.success) {
                 return searchingMessage.edit({
@@ -155,17 +155,37 @@ module.exports = {
         return { success: true };
     },
 
-    async getTrackData(query, guildId) {
+    async getTrackData(query, guildId, userId) {
         const YouTube = require("../../src/YouTube");
         const Spotify = require("../../src/Spotify");
         const SoundCloud = require("../../src/SoundCloud");
         const DirectLink = require("../../src/DirectLink");
+        const { Playlist, PlaylistItem } = require("../../models");
 
         try {
             let tracks = [];
             let isPlaylist = false;
 
-            // Detect platform
+            // 1. Check if it's a personal playlist first
+            const personalPlaylist = await Playlist.findOne({
+                where: { userId, name: query },
+                include: [{ model: PlaylistItem, as: "items", order: [["createdAt", "ASC"]] }]
+            });
+
+            if (personalPlaylist && personalPlaylist.items.length > 0) {
+                tracks = personalPlaylist.items.map(item => ({
+                    title: item.title,
+                    url: item.url,
+                    thumbnail: item.thumbnail,
+                    duration: item.duration,
+                    artist: item.artist,
+                    platform: item.platform || "youtube",
+                    type: "track"
+                }));
+                return { success: true, isPlaylist: true, tracks };
+            }
+
+            // 2. Detect platform for normal search
             const platform = this.detectPlatform(query);
 
             switch (platform) {
