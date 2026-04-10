@@ -140,6 +140,22 @@
       "error_playing": "❌ An error occurred while playing the song!",
       "error_searching": "❌ An error occurred while searching for music!",
       "error_title": "❌ Error"
+    },
+    "playlist": {
+      "title": "📋 User Playlists",
+      "created": "✅ Playlist **{name}** created!",
+      "deleted": "✅ Playlist **{name}** deleted!",
+      "added": "✅ Added **{title}** to playlist **{name}**!",
+      "removed": "✅ Removed song from playlist!",
+      "not_found": "❌ Playlist not found!",
+      "empty": "❌ Playlist is empty!",
+      "already_exists": "❌ A playlist with this name already exists!",
+      "usage": "💡 Usage:\n`playlist create <name>`\n`playlist delete <name>`\n`playlist add <name> <query/url>`\n`playlist remove <name> <song number>`\n`playlist list`\n`playlist show <name>`\n`playlist play <name>`",
+      "my_playlists": "📋 Your Playlists",
+      "no_playlists": "You don't have any playlists yet. Creating one!",
+      "tracks_in": "Tracks in **{name}**",
+      "play_success": "✅ Playing **{count}** songs from playlist **{name}**!",
+      "invalid_index": "❌ Invalid song number!"
     }
   },
   "youtube": {

@@ -140,6 +140,22 @@
       "error_playing": "❌ حدث خطأ أثناء تشغيل الأغنية!",
       "error_searching": "❌ حدث خطأ أثناء البحث عن الموسيقى!",
       "error_title": "❌ خطأ"
+    },
+    "playlist": {
+      "title": "📋 قوائم تشغيل المستخدم",
+      "created": "✅ تم إنشاء قائمة التشغيل **{name}**!",
+      "deleted": "✅ تم حذف قائمة التشغيل **{name}**!",
+      "added": "✅ تمت إضافة **{title}** إلى قائمة التشغيل **{name}**!",
+      "removed": "✅ تم حذف الأغنية من قائمة التشغيل!",
+      "not_found": "❌ لم يتم العثور على قائمة التشغيل!",
+      "empty": "❌ قائمة التشغيل فارغة!",
+      "already_exists": "❌ قائمة التشغيل بهذا الاسم موجودة بالفعل!",
+      "usage": "💡 الاستخدام:\n`playlist create <الاسم>`\n`playlist delete <الاسم>`\n`playlist add <الاسم> <بحث/رابط>`\n`playlist remove <الاسم> <رقم الأغنية>`\n`playlist list`\n`playlist show <الاسم>`\n`playlist play <الاسم>`",
+      "my_playlists": "📋 قوائم التشغيل الخاصة بك",
+      "no_playlists": "قائمة تشغيل فارغة. ابدأ بإنشاء واحدة!",
+      "tracks_in": "الأغاني في قائمة **{name}**",
+      "play_success": "✅ جاري تشغيل **{count}** أغنية من قائمة التشغيل **{name}**!",
+      "invalid_index": "❌ رقم الأغنية غير صحيح!"
     }
   },
   "youtube": {
