@@ -15,13 +15,10 @@ module.exports = {
         const userId = message.author.id;
         const subCommand = args[0]?.toLowerCase();
 
-        const t = (key, vars = {}) => LanguageManager.getTranslation(guildId, `commands.playlist.${key}`, vars);
+        const t = (key, vars = {}) => LanguageManager.getTranslation(guildId, `commands.playlist.${key}`, { prefix: client.prefix, ...vars });
 
         if (!subCommand) {
-            return message.reply({
-                content: await t("usage"),
-                allowedMentions: { repliedUser: false }
-            });
+            return this.sendUsage(message, t, client.prefix);
         }
 
         switch (subCommand) {
@@ -47,16 +44,36 @@ module.exports = {
                 await this.handlePlay(message, args.slice(1), userId, t, client);
                 break;
             default:
-                message.reply({
-                    content: await t("usage"),
-                    allowedMentions: { repliedUser: false }
-                });
+                await this.sendUsage(message, t, client.prefix);
         }
+    },
+
+    async sendUsage(message, t, prefix) {
+        const embed = new EmbedBuilder()
+            .setTitle(await t("usage_title"))
+            .setColor(config.bot.embedColor || "#00FF00")
+            .setDescription(await t("usage_desc"))
+            .addFields([
+                { name: `➕ ${await t("create_title")}`, value: `\`${prefix}playlist create <name>\`\n*${await t("create_desc")}*` },
+                { name: `❌ ${await t("delete_title")}`, value: `\`${prefix}playlist delete <name>\`\n*${await t("delete_desc")}*` },
+                { name: `🎵 ${await t("add_title")}`, value: `\`${prefix}playlist add <name> <query/url>\`\n*${await t("add_desc")}*` },
+                { name: `➖ ${await t("remove_title")}`, value: `\`${prefix}playlist remove <name> <song_number>\`\n*${await t("remove_desc")}*` },
+                { name: `📋 ${await t("list_title")}`, value: `\`${prefix}playlist list\`\n*${await t("list_desc")}*` },
+                { name: `🔍 ${await t("show_title")}`, value: `\`${prefix}playlist show <name>\`\n*${await t("show_desc")}*` },
+                { name: `▶️ ${await t("play_title")}`, value: `\`${prefix}playlist play <name>\`\n*${await t("play_desc")}*` }
+            ])
+            .setFooter({ text: message.author.tag, iconURL: message.author.displayAvatarURL() })
+            .setTimestamp();
+
+        return message.reply({
+            embeds: [embed],
+            allowedMentions: { repliedUser: false }
+        });
     },
 
     async handleCreate(message, args, userId, t) {
         const name = args.join(" ");
-        if (!name) return message.reply({ content: await t("usage"), allowedMentions: { repliedUser: false } });
+        if (!name) return this.sendUsage(message, t, LanguageManager.getPrefix(message.guild.id));
 
         try {
             const [playlist, created] = await Playlist.findOrCreate({
@@ -77,7 +94,7 @@ module.exports = {
 
     async handleDelete(message, args, userId, t) {
         const name = args.join(" ");
-        if (!name) return message.reply({ content: await t("usage"), allowedMentions: { repliedUser: false } });
+        if (!name) return this.sendUsage(message, t, LanguageManager.getPrefix(message.guild.id));
 
         try {
             const deleted = await Playlist.destroy({ where: { userId, name } });
@@ -91,7 +108,7 @@ module.exports = {
     },
 
     async handleAdd(message, args, userId, t, client) {
-        if (args.length < 2) return message.reply({ content: await t("usage"), allowedMentions: { repliedUser: false } });
+        if (args.length < 2) return this.sendUsage(message, t, client.prefix);
 
         const name = args[0];
         const query = args.slice(1).join(" ");
@@ -136,7 +153,7 @@ module.exports = {
     },
 
     async handleRemove(message, args, userId, t) {
-        if (args.length < 2) return message.reply({ content: await t("usage"), allowedMentions: { repliedUser: false } });
+        if (args.length < 2) return this.sendUsage(message, t, LanguageManager.getPrefix(message.guild.id));
 
         const name = args[0];
         const index = parseInt(args[1]) - 1;
@@ -191,7 +208,7 @@ module.exports = {
 
     async handleShow(message, args, userId, t) {
         const name = args.join(" ");
-        if (!name) return message.reply({ content: await t("usage"), allowedMentions: { repliedUser: false } });
+        if (!name) return this.sendUsage(message, t, LanguageManager.getPrefix(message.guild.id));
 
         try {
             const playlist = await Playlist.findOne({
@@ -224,7 +241,7 @@ module.exports = {
 
     async handlePlay(message, args, userId, t, client) {
         const name = args.join(" ");
-        if (!name) return message.reply({ content: await t("usage"), allowedMentions: { repliedUser: false } });
+        if (!name) return this.sendUsage(message, t, client.prefix);
 
         try {
             const playlist = await Playlist.findOne({ where: { userId, name } });
