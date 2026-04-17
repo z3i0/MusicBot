@@ -456,7 +456,24 @@ class MusicEmbedManager {
                 .setDisabled(disabled || !player.currentLyrics?.parsed)
         );
 
-        return [row1, row2, row3];
+        // ─── Row 4: User Actions (Like, Add to Playlist) ───
+        const row4 = new ActionRowBuilder().addComponents(
+            new ButtonBuilder()
+                .setCustomId(`music_like:${requesterId}:${sessionId}`)
+                .setLabel(await t('buttons.like') || 'Like')
+                .setEmoji('❤️')
+                .setStyle(ButtonStyle.Secondary)
+                .setDisabled(disabled),
+
+            new ButtonBuilder()
+                .setCustomId(`music_add_playlist:${requesterId}:${sessionId}`)
+                .setLabel(await t('buttons.add_playlist') || 'Add to Playlist')
+                .setEmoji('➕')
+                .setStyle(ButtonStyle.Secondary)
+                .setDisabled(disabled)
+        );
+
+        return [row1, row2, row3, row4];
     }
 
     async createQueueAdditionMessage(tracks, guildId, isPlaylist) {
