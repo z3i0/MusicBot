@@ -17,6 +17,7 @@ const {
 const config = require("../config.js");
 const LanguageManager = require("../src/LanguageManager.js");
 const MusicPlayer = require("../src/MusicPlayer.js");
+const { Playlist, PlaylistItem } = require("../models");
 
 module.exports = {
   name: Events.InteractionCreate,
@@ -140,6 +141,18 @@ module.exports = {
 
         case "music_seek_forward":
           await this.handleSeek(interaction, player, requesterId, "forward");
+          break;
+
+        case "music_like":
+          await this.handleLike(interaction, player);
+          break;
+
+        case "music_add_playlist":
+          await this.handleAddToPlaylist(interaction, player);
+          break;
+
+        case "music_playlist_select":
+          await this.handlePlaylistSelection(interaction, player);
           break;
 
         default:
@@ -1746,6 +1759,153 @@ module.exports = {
     } catch (error) {
       console.error("Live lyrics error:", error);
       await interaction.editReply({ content: "❌ Failed to start live lyrics display." });
+    }
+  },
+
+  async handleLike(interaction, player) {
+    if (!player.currentTrack) return;
+
+    const guildId = interaction.guild.id;
+    const userId = interaction.user.id;
+    const track = player.currentTrack;
+
+    try {
+      const likedPlaylistName = await LanguageManager.getTranslation(guildId, "commands.playlist.liked_songs_name");
+
+      const [playlist] = await Playlist.findOrCreate({
+        where: { userId, name: likedPlaylistName },
+        defaults: { userId, name: likedPlaylistName }
+      });
+
+      const existingItem = await PlaylistItem.findOne({
+        where: { playlistId: playlist.id, url: track.url }
+      });
+
+      if (existingItem) {
+        await existingItem.destroy();
+        return await interaction.reply({
+          content: await LanguageManager.getTranslation(guildId, "buttonhandler.removed_from_liked"),
+          flags: [1 << 6]
+        });
+      } else {
+        await PlaylistItem.create({
+          playlistId: playlist.id,
+          title: track.title,
+          url: track.url,
+          thumbnail: track.thumbnail,
+          duration: track.duration,
+          artist: track.artist,
+          platform: track.platform
+        });
+        return await interaction.reply({
+          content: await LanguageManager.getTranslation(guildId, "buttonhandler.added_to_liked"),
+          flags: [1 << 6]
+        });
+      }
+    } catch (error) {
+      console.error("Like error:", error);
+      await interaction.reply({
+        content: "❌ Error processing like.",
+        flags: [1 << 6]
+      });
+    }
+  },
+
+  async handleAddToPlaylist(interaction, player) {
+    if (!player.currentTrack) return;
+
+    const guildId = interaction.guild.id;
+    const userId = interaction.user.id;
+
+    try {
+      const playlists = await Playlist.findAll({ where: { userId } });
+
+      if (playlists.length === 0) {
+        return await interaction.reply({
+          content: await LanguageManager.getTranslation(guildId, "buttonhandler.no_playlists_found"),
+          flags: [1 << 6]
+        });
+      }
+
+      const selectMenu = new StringSelectMenuBuilder()
+        .setCustomId(`music_playlist_select:${userId}:${player.sessionId}`)
+        .setPlaceholder(await LanguageManager.getTranslation(guildId, "buttonhandler.choose_playlist"))
+        .addOptions(
+          playlists.slice(0, 25).map(p =>
+            new StringSelectMenuOptionBuilder()
+              .setLabel(p.name)
+              .setValue(String(p.id))
+              .setEmoji("📋")
+          )
+        );
+
+      const row = new ActionRowBuilder().addComponents(selectMenu);
+
+      await interaction.reply({
+        content: await LanguageManager.getTranslation(guildId, "buttonhandler.choose_playlist"),
+        components: [row],
+        flags: [1 << 6]
+      });
+    } catch (error) {
+      console.error("Add to playlist error:", error);
+      await interaction.reply({
+        content: "❌ Error fetching playlists.",
+        flags: [1 << 6]
+      });
+    }
+  },
+
+  async handlePlaylistSelection(interaction, player) {
+    if (!player.currentTrack) return;
+
+    const guildId = interaction.guild.id;
+    const playlistId = interaction.values[0];
+    const track = player.currentTrack;
+
+    try {
+      const playlist = await Playlist.findByPk(playlistId);
+      if (!playlist) {
+        return await interaction.update({
+          content: "❌ Playlist not found.",
+          components: [],
+          flags: [1 << 6]
+        });
+      }
+
+      const existingItem = await PlaylistItem.findOne({
+        where: { playlistId: playlist.id, url: track.url }
+      });
+
+      if (existingItem) {
+        return await interaction.update({
+          content: `ℹ️ **${track.title}** is already in **${playlist.name}**.`,
+          components: [],
+          flags: [1 << 6]
+        });
+      }
+
+      await PlaylistItem.create({
+        playlistId: playlist.id,
+        title: track.title,
+        url: track.url,
+        thumbnail: track.thumbnail,
+        duration: track.duration,
+        artist: track.artist,
+        platform: track.platform
+      });
+
+      await interaction.update({
+        content: await LanguageManager.getTranslation(guildId, "buttonhandler.added_to_playlist", { name: playlist.name }),
+        components: [],
+        flags: [1 << 6]
+      });
+    } catch (error) {
+      console.error("Playlist selection error:", error);
+      await interaction.update({
+        content: "❌ Error adding to playlist.",
+        components: [],
+        flags: [1 << 6]
+      });
     }
   },
 };
