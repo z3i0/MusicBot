@@ -1,6 +1,7 @@
 const youtubedl = require('youtube-dl-exec');
 const config = require('../config');
 const LanguageManager = require('./LanguageManager');
+const axios = require('axios');
 
 // In-memory cache for search results to improve speed
 const searchCache = new Map();
@@ -34,6 +35,79 @@ class YouTube {
         return baseOptions;
     }
 
+    static async scrapeSearch(query, limit = 1, guildId = null) {
+        try {
+            const url = `https://www.youtube.com/results?search_query=${encodeURIComponent(query)}&sp=EgIQAQ%253D%253D`;
+            
+            const response = await axios.get(url, {
+                headers: {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+                    'Accept-Language': 'en-US,en;q=0.9'
+                },
+                timeout: 5000
+            });
+
+            const html = response.data;
+            const regex = /var ytInitialData = ({.*?});<\/script>/s;
+            const match = html.match(regex);
+
+            if (!match) return [];
+
+            const data = JSON.parse(match[1]);
+            const contents = data.contents?.twoColumnSearchResultsRenderer?.primaryContents?.sectionListRenderer?.contents?.[0]?.itemSectionRenderer?.contents;
+
+            if (!contents) return [];
+
+            const tracks = [];
+            const unknownTitle = guildId ? await LanguageManager.getTranslation(guildId, 'youtube.unknown_title') : 'Unknown Title';
+            const unknownArtist = guildId ? await LanguageManager.getTranslation(guildId, 'youtube.unknown_artist') : 'Unknown Artist';
+
+            for (const item of contents) {
+                if (tracks.length >= limit) break;
+
+                const video = item.videoRenderer;
+                if (!video) continue;
+
+                const videoId = video.videoId;
+                const title = video.title?.runs?.[0]?.text || unknownTitle;
+                const artist = video.ownerText?.runs?.[0]?.text || unknownArtist;
+                const durationText = video.lengthText?.simpleText;
+                const thumbnail = video.thumbnail?.thumbnails?.[video.thumbnail.thumbnails.length - 1]?.url || video.thumbnail?.thumbnails?.[0]?.url;
+
+                let duration = 0;
+                if (durationText) {
+                    const parts = durationText.split(':').reverse();
+                    for (let i = 0; i < parts.length; i++) {
+                        duration += parseInt(parts[i]) * Math.pow(60, i);
+                    }
+                }
+
+                if (videoId) {
+                    tracks.push({
+                        title,
+                        artist,
+                        url: `https://www.youtube.com/watch?v=${videoId}`,
+                        duration,
+                        thumbnail,
+                        thumbnails: video.thumbnail?.thumbnails || [],
+                        platform: 'youtube',
+                        type: 'track',
+                        id: videoId,
+                        views: video.viewCountText?.simpleText || '0 views',
+                        uploadDate: video.publishedTimeText?.simpleText || 'Unknown date',
+                        description: video.detailedMetadataSnippets?.[0]?.snippetText?.runs?.[0]?.text || '',
+                        streamInfo: null
+                    });
+                }
+            }
+
+            return tracks;
+        } catch (error) {
+            console.error('High-speed YouTube search scraper error:', error.message);
+            return [];
+        }
+    }
+
     static async search(query, limit = 1, guildId = null) {
         try {
             // Check cache
@@ -52,7 +126,22 @@ class YouTube {
                 return info ? [info] : [];
             }
 
-            // Use yt-dlp for YouTube search
+            // Try the ultra-fast HTTP scraper first (under 500ms)
+            try {
+                const tracks = await this.scrapeSearch(query, limit, guildId);
+                if (tracks && tracks.length > 0) {
+                    // Save to cache
+                    searchCache.set(cacheKey, {
+                        data: tracks,
+                        timestamp: Date.now()
+                    });
+                    return tracks;
+                }
+            } catch (scrapeError) {
+                console.error('⚠️ High-speed YouTube scraper failed, falling back to yt-dlp:', scrapeError.message);
+            }
+
+            // Fallback to slower yt-dlp search if scraper failed
             const searchQuery = `ytsearch${limit}:${query}`;
 
             // Optimization: If limit is 1, don't use flatPlaylist so we get full metadata (like duration) in one go
@@ -194,7 +283,7 @@ class YouTube {
         }
     }
 
-    static async getStream(url, guildId = null, startSeconds = 0) {
+    static async getStream(url, guildId = null, startSeconds = 0, returnStream = false) {
         try {
             if (!url) {
                 const errorMsg = guildId ? await LanguageManager.getTranslation(guildId, 'youtube.url_required') : 'URL is required';
@@ -223,7 +312,7 @@ class YouTube {
                 finalUrl = `${baseUrl}${separator}begin=${startMs}`;
             }
 
-            return {
+            const result = {
                 url: finalUrl,
                 rawUrl: baseUrl,
                 type: info.acodec && info.acodec.includes('opus') ? 'opus' : 'arbitrary',
@@ -233,6 +322,18 @@ class YouTube {
                 format: info.format,
                 httpHeaders: info.http_headers || {}
             };
+
+            if (returnStream) {
+                const ytdlOptions = this.getYtDlpOptions({
+                    output: '-',
+                    format: config.ytdl.format || 'bestaudio/best',
+                });
+                const subprocess = youtubedl.exec(url, ytdlOptions, { stdio: ['ignore', 'pipe', 'ignore'] });
+                result.stream = subprocess.stdout;
+                result.subprocess = subprocess;
+            }
+
+            return result;
         } catch (error) {
             throw error;
         }
