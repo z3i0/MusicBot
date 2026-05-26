@@ -833,6 +833,7 @@ class MusicPlayer {
             this.pendingEndReason = null;
             this.skipRequested = false;
             this.stopRequested = false;
+            this.destroyActiveStreamSubprocess();
             const resumeFromMs = Math.max(0, Math.floor(Number(seekMs) || 0));
             const resumeFromSeconds = resumeFromMs / 1000;
             this.currentTrackStartOffsetMs = resumeFromMs;
@@ -873,7 +874,7 @@ class MusicPlayer {
                 // Get stream normally
                 switch (this.currentTrack.platform) {
                     case 'youtube':
-                        streamInfo = await YouTube.getStream(streamUrl, this.guild.id, resumeFromSeconds);
+                        streamInfo = await YouTube.getStream(streamUrl, this.guild.id, resumeFromSeconds, true);
                         break;
 
                     case 'spotify':
@@ -906,7 +907,7 @@ class MusicPlayer {
                             streamUrl = ytTrack.url;
                             this.currentTrack.youtubeUrl = streamUrl;
                             this.currentTrack.youtubeTitle = ytTrack.title; // Store YouTube title
-                            streamInfo = await YouTube.getStream(streamUrl, this.guild.id, resumeFromSeconds);
+                            streamInfo = await YouTube.getStream(streamUrl, this.guild.id, resumeFromSeconds, true);
                         } else {
                             const errorMsg = await LanguageManager.getTranslation(this.guild.id, 'musicplayer.youtube_not_found_spotify').replace('{title}', this.currentTrack.title);
                             throw new Error(errorMsg);
@@ -930,6 +931,10 @@ class MusicPlayer {
             if (!streamInfo) {
                 const errorMsg = await LanguageManager.getTranslation(this.guild.id, 'musicplayer.failed_get_audio_stream');
                 throw new Error(errorMsg);
+            }
+
+            if (streamInfo && streamInfo.subprocess) {
+                this.activeStreamSubprocess = streamInfo.subprocess;
             }
 
             // Handle both old (string) and new (object) stream formats
@@ -1435,6 +1440,7 @@ class MusicPlayer {
     }
 
     stop() {
+        this.destroyActiveStreamSubprocess();
         this.clearInactivityTimer(false);
         this.pauseReasons.clear();
         this.paused = false;
@@ -1642,6 +1648,7 @@ class MusicPlayer {
         }
 
         this.isTransitioning = true;
+        this.destroyActiveStreamSubprocess();
 
         try {
             if (this.trackTimer) {
@@ -2431,6 +2438,7 @@ class MusicPlayer {
 
     cleanup(isShutdown = false) {
         try {
+            this.destroyActiveStreamSubprocess();
             // Clear professional voice channel status before cleaning up everything
             this.updateChannelStatus();
 
@@ -2599,8 +2607,20 @@ class MusicPlayer {
         }
     }
 
+    destroyActiveStreamSubprocess() {
+        if (this.activeStreamSubprocess) {
+            try {
+                this.activeStreamSubprocess.kill('SIGTERM');
+            } catch (e) {
+                // Ignore kill errors
+            }
+            this.activeStreamSubprocess = null;
+        }
+    }
+
     // Clean up resources when destroying the player
     destroy() {
+        this.destroyActiveStreamSubprocess();
         // Clear track timer
         if (this.trackTimer) {
             clearTimeout(this.trackTimer);
