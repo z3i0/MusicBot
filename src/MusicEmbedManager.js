@@ -199,9 +199,13 @@ class MusicEmbedManager {
         const loopIcon = player.loop === 'track' ? '🔂' : player.loop === 'queue' ? '🔁' : '➡️';
         const volumeBar = this.createVolumeBar(player.volume);
 
-        // ─── Header: Now Playing ───
+        const isPlaybackEnded = !player.currentTrack;
+
+        // ─── Header: Now Playing or Playback Ended ───
+        const titleKey = isPlaybackEnded ? 'musicplayer.queue_completed' : 'commands.nowplaying.title';
+        const headerTitle = await LanguageManager.getTranslation(guildId, titleKey) || (isPlaybackEnded ? '✅ Queue Completed' : '🎵 Now Playing');
         const headerText = new TextDisplayBuilder()
-            .setContent(`🎵  **NOW PLAYING**`);
+            .setContent(`**${headerTitle}**`);
 
         const sep1 = new SeparatorBuilder()
             .setSpacing(SeparatorSpacingSize.Small)
@@ -231,7 +235,9 @@ class MusicEmbedManager {
             .setDivider(true);
 
         // ─── Stats Row ───
-        const statusKey = player.paused ? 'commands.nowplaying.status_paused' : 'commands.nowplaying.status_playing';
+        const statusKey = player.paused
+            ? 'commands.nowplaying.status_paused'
+            : (isPlaybackEnded ? 'commands.nowplaying.status_stopped' : 'commands.nowplaying.status_playing');
         let statusText = await LanguageManager.getTranslation(guildId, statusKey);
         if (player.pauseReasons?.has('mute')) statusText += ' 🔇';
         else if (player.pauseReasons?.has('alone')) statusText += ' ⏳';
@@ -317,9 +323,10 @@ class MusicEmbedManager {
             try {
                 const disabledButtons = await this.createControlButtons(player, true);
 
-                // If we still have a track reference, update with the design preserved
-                if (player.currentTrack) {
-                    const components = await this.buildNowPlayingComponents(player, player.currentTrack, player.guild.id);
+                // If we still have a track reference (or fallback to lastPlayedTrack), update with the design preserved
+                const displayTrack = player.currentTrack || player.lastPlayedTrack;
+                if (displayTrack) {
+                    const components = await this.buildNowPlayingComponents(player, displayTrack, player.guild.id);
                     await player.nowPlayingMessage.edit({
                         flags: MessageFlags.IsComponentsV2,
                         components: [...components, ...disabledButtons]

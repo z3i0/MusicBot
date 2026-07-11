@@ -61,7 +61,8 @@ class MusicPlayer {
 
         // Queue management
         this.queue = [];
-        this.currentTrack = null;
+        this._currentTrack = null;
+        this.lastPlayedTrack = null;
         this.previousTracks = [];
 
         // Player settings
@@ -157,6 +158,17 @@ class MusicPlayer {
 
         // Start state syncing automatically to ensure restoration works even after crash
         this.startStateSync();
+    }
+
+    get currentTrack() {
+        return this._currentTrack;
+    }
+
+    set currentTrack(track) {
+        this._currentTrack = track;
+        if (track) {
+            this.lastPlayedTrack = track;
+        }
     }
 
     setupEvents() {
