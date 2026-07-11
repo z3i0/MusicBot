@@ -15,10 +15,35 @@ const fs = require("fs");
 const chalk = require("chalk");
 const { joinVoiceChannel, VoiceConnectionStatus } = require("@discordjs/voice");
 
+// Helper to clean up and sanitize error logs, especially for ChildProcessError
+function cleanErrorReason(reason) {
+  if (!reason) return reason;
+  
+  if (reason.name === 'ChildProcessError' || (reason.command && 'stdout' in reason)) {
+    // If it was terminated intentionally (e.g. SIGTERM/killed when song is skipped/stopped), suppress it
+    if (reason.signalCode === 'SIGTERM' || reason.killed) {
+      return null;
+    }
+    // Truncate stdout and stderr to avoid massive binary/text printouts
+    return {
+      message: reason.message,
+      command: reason.command,
+      exitCode: reason.exitCode,
+      signalCode: reason.signalCode,
+      stderr: typeof reason.stderr === 'string' ? reason.stderr.substring(0, 1000) : reason.stderr,
+      stdout: typeof reason.stdout === 'string' ? (reason.stdout.length > 200 ? `[Truncated ${reason.stdout.length} chars]` : reason.stdout) : reason.stdout
+    };
+  }
+  return reason;
+}
+
 // Handle global errors to prevent the process from exiting
 process.on('unhandledRejection', (reason, promise) => {
-  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+  const clean = cleanErrorReason(reason);
+  if (clean === null) return; // Suppress normal SIGTERM exits
+  console.error('Unhandled Rejection at:', promise, 'reason:', clean);
 });
+
 
 process.on('uncaughtException', (error, origin) => {
   console.error(`Caught exception: ${error}\n` + `Exception origin: ${origin}`);
@@ -388,7 +413,9 @@ module.exports = async function runSingleBot(botRow) {
   });
 
   process.on('unhandledRejection', (reason, promise) => {
-    console.error(chalk.red('❌ Unhandled Rejection at:'), promise, 'reason:', reason);
+    const clean = cleanErrorReason(reason);
+    if (clean === null) return; // Suppress normal SIGTERM exits
+    console.error(chalk.red('❌ Unhandled Rejection at:'), promise, 'reason:', clean);
   });
 
   process.on('uncaughtException', (error) => {

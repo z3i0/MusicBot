@@ -329,6 +329,8 @@ class YouTube {
                     format: config.ytdl.format || 'bestaudio/best',
                 });
                 const subprocess = youtubedl.exec(url, ytdlOptions, { stdio: ['ignore', 'pipe', 'ignore'] });
+                // Prevent unhandled promise rejection if subprocess is killed/terminated later
+                subprocess.catch(() => {});
                 result.stream = subprocess.stdout;
                 result.subprocess = subprocess;
             }
