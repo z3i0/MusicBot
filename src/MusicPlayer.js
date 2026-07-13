@@ -17,7 +17,16 @@ const LanguageManager = require('./LanguageManager');
 const PlayerStateManager = require('./PlayerStateManager');
 const LyricsManager = require('./LyricsManager');
 const prism = require('prism-media');
-const ffmpegPath = require('ffmpeg-static');
+let ffmpegPath = require('ffmpeg-static');
+try {
+    const { execSync } = require('child_process');
+    const systemFfmpeg = execSync('which ffmpeg', { encoding: 'utf8' }).trim();
+    if (systemFfmpeg) {
+        ffmpegPath = systemFfmpeg;
+    }
+} catch (e) {
+    // Keep ffmpeg-static
+}
 const { promisify } = require('util');
 const chalk = require('chalk');
 const { pipeline, Readable } = require('stream');

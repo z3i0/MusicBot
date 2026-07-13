@@ -2,6 +2,8 @@ const youtubedl = require('youtube-dl-exec');
 const config = require('../config');
 const LanguageManager = require('./LanguageManager');
 const axios = require('axios');
+const fs = require('fs');
+const path = require('path');
 
 // In-memory cache for search results to improve speed
 const searchCache = new Map();
@@ -35,15 +37,55 @@ class YouTube {
         return baseOptions;
     }
 
+    static getCookieHeader() {
+        try {
+            if (!config.ytdl.cookiesFile) return null;
+            
+            const cookiesPath = path.isAbsolute(config.ytdl.cookiesFile)
+                ? config.ytdl.cookiesFile
+                : path.resolve(__dirname, '..', config.ytdl.cookiesFile);
+
+            if (!fs.existsSync(cookiesPath)) return null;
+
+            const content = fs.readFileSync(cookiesPath, 'utf8');
+            const lines = content.split('\n');
+            const cookiePairs = [];
+
+            for (const line of lines) {
+                const trimmed = line.trim();
+                if (!trimmed || trimmed.startsWith('#')) continue;
+
+                const parts = trimmed.split('\t');
+                if (parts.length >= 7) {
+                    const name = parts[5];
+                    const value = parts[6];
+                    cookiePairs.push(`${name}=${value}`);
+                }
+            }
+
+            return cookiePairs.length > 0 ? cookiePairs.join('; ') : null;
+        } catch (error) {
+            console.error('Error parsing cookies.txt:', error.message);
+            return null;
+        }
+    }
+
     static async scrapeSearch(query, limit = 1, guildId = null) {
         try {
             const url = `https://www.youtube.com/results?search_query=${encodeURIComponent(query)}&sp=EgIQAQ%253D%253D`;
             
+            const headers = {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+                'Accept-Language': 'en-US,en;q=0.9'
+            };
+
+            const cookieHeader = this.getCookieHeader();
+            if (cookieHeader) {
+                headers['Cookie'] = cookieHeader;
+            }
+
             const response = await axios.get(url, {
-                headers: {
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
-                    'Accept-Language': 'en-US,en;q=0.9'
-                },
+                headers,
                 timeout: 5000
             });
 
@@ -72,14 +114,14 @@ class YouTube {
                 const title = video.title?.runs?.[0]?.text || unknownTitle;
                 const artist = video.ownerText?.runs?.[0]?.text || unknownArtist;
                 const durationText = video.lengthText?.simpleText;
+                if (!durationText) continue; // Skip live streams/upcoming streams
+
                 const thumbnail = video.thumbnail?.thumbnails?.[video.thumbnail.thumbnails.length - 1]?.url || video.thumbnail?.thumbnails?.[0]?.url;
 
                 let duration = 0;
-                if (durationText) {
-                    const parts = durationText.split(':').reverse();
-                    for (let i = 0; i < parts.length; i++) {
-                        duration += parseInt(parts[i]) * Math.pow(60, i);
-                    }
+                const parts = durationText.split(':').reverse();
+                for (let i = 0; i < parts.length; i++) {
+                    duration += parseInt(parts[i]) * Math.pow(60, i);
                 }
 
                 if (videoId) {
@@ -160,10 +202,16 @@ class YouTube {
             }
 
             const tracks = [];
-            const resultsToProcess = results.entries.slice(0, limit);
 
-            for (const item of resultsToProcess) {
+            for (const item of results.entries) {
+                if (tracks.length >= limit) break;
+
                 try {
+                    // Skip live streams or upcoming videos
+                    if (item.is_live || item.live_status === 'is_live' || !item.duration || item.duration === 0) {
+                        continue;
+                    }
+
                     const unknownTitle = guildId ? await LanguageManager.getTranslation(guildId, 'youtube.unknown_title') : 'Unknown Title';
                     const unknownArtist = guildId ? await LanguageManager.getTranslation(guildId, 'youtube.unknown_artist') : 'Unknown Artist';
 
