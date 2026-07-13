@@ -236,7 +236,7 @@ class LyricsManager {
             return geniusResult;
         }
 
-        console.log(`❌ No lyrics found for: ${track.title}`);
+        // console.log(`❌ No lyrics found for: ${track.title}`);
         // Cache null result to avoid repeated lookups
         this.storeInCache(cacheKey, null);
         return null;
