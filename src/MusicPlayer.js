@@ -846,6 +846,13 @@ class MusicPlayer {
             this.pausedTime = 0;
             this.startTime = null; // Will be set when Playing event fires
 
+            // For fresh playback (not seeking within the same track):
+            if (resumeFromMs === 0) {
+                this.clearInactivityTimer(false);
+                this.pauseReasons.clear();
+                this.paused = false;
+            }
+
             // Get audio stream - check preloaded first!
             let streamUrl = this.currentTrack.url;
             let streamInfo;
@@ -1138,6 +1145,9 @@ class MusicPlayer {
             if (this.pauseReasons.size > 0) {
                 console.log(`⏸️  Paused due to: ${Array.from(this.pauseReasons).join(', ')}`);
                 this.audioPlayer.pause();
+                this.paused = true;
+            } else {
+                this.paused = false;
             }
 
             // Store active stream info for quick resume
@@ -1309,7 +1319,9 @@ class MusicPlayer {
     }
 
     resume(reason = 'manual') {
-        return this.resumeFor(reason);
+        this.pauseReasons.delete('manual');
+        this.pauseReasons.delete('alone');
+        return this.resumeFor();
     }
 
     pauseFor(reason = null) {
@@ -1369,24 +1381,33 @@ class MusicPlayer {
         return false;
     }
 
-    startInactivityTimer() {
+    startInactivityTimer(reason = 'inactivity') {
         if (this.inactivityTimer) return;
 
-        this.pauseFor('alone');
+        if (reason === 'alone') {
+            this.pauseFor('alone');
+        }
 
         this.inactivityTimer = setTimeout(async () => {
             this.inactivityTimer = null;
 
-            const channelId = this.voiceChannel?.id;
-            const channel = channelId ? this.guild.channels.cache.get(channelId) : null;
-            const hasListeners = channel ? channel.members.filter(member => !member.user.bot).size > 0 : false;
+            if (reason === 'alone') {
+                const channelId = this.voiceChannel?.id;
+                const channel = channelId ? this.guild.channels.cache.get(channelId) : null;
+                const hasListeners = channel ? channel.members.filter(member => !member.user.bot).size > 0 : false;
 
-            if (hasListeners) {
-                this.resumeFor('alone');
-                if (this.guild.client.musicEmbedManager) {
-                    await this.guild.client.musicEmbedManager.updateNowPlayingEmbed(this);
+                if (hasListeners) {
+                    this.resumeFor('alone');
+                    if (this.guild.client.musicEmbedManager) {
+                        await this.guild.client.musicEmbedManager.updateNowPlayingEmbed(this);
+                    }
+                    return;
                 }
-                return;
+            } else {
+                // Inactivity timeout: if tracks were queued/played in the meantime, don't disconnect
+                if (this.currentTrack || this.queue.length > 0) {
+                    return;
+                }
             }
 
             this.pauseReasons.clear();
@@ -1506,6 +1527,9 @@ class MusicPlayer {
                 this.trackTimer = null;
             }
 
+            this.clearInactivityTimer(false);
+            this.pauseReasons.clear();
+            this.paused = false;
             this.pendingEndReason = 'skip';
             this.skipRequested = true;
             this.audioPlayer.stop(true);
@@ -1779,7 +1803,7 @@ class MusicPlayer {
             }
 
             // Start the inactivity timer so the bot stays for the configured duration (30 mins)
-            this.startInactivityTimer();
+            this.startInactivityTimer('inactivity');
         } finally {
             this.isTransitioning = false;
             this.skipRequested = false;

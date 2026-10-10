@@ -73,7 +73,12 @@ class MusicEmbedManager {
                     try {
                         if (!player.connection) await player.connect();
                         await player.play();
-                        firstTrackResult = await this.createNewMusicEmbed(player, track, member, interaction);
+                        try {
+                            firstTrackResult = await this.createNewMusicEmbed(player, track, member, interaction);
+                        } catch (embedErr) {
+                            console.error('⚠️ Failed to send now playing embed:', embedErr?.message || embedErr);
+                            firstTrackResult = { success: true, message: 'Now playing', isNewEmbed: false };
+                        }
                     } catch (playError) {
                         console.error('Error in play process:', playError);
                         player.currentTrack = null;
@@ -133,15 +138,27 @@ class MusicEmbedManager {
 
         let message;
         if (interaction instanceof BaseInteraction) {
-            if (interaction.deferred || interaction.replied) {
-                message = await interaction.editReply(payload);
-            } else {
-                message = await interaction.reply(payload);
+            try {
+                if (interaction.deferred || interaction.replied) {
+                    message = await interaction.editReply(payload);
+                } else {
+                    message = await interaction.reply(payload);
+                }
+            } catch (err) {
+                if (player.textChannel) {
+                    message = await player.textChannel.send(payload).catch(() => null);
+                }
             }
         } else if (interaction && typeof interaction.reply === 'function') {
-            message = await interaction.reply({ ...payload, allowedMentions: { repliedUser: false } });
-        } else {
-            message = await player.textChannel.send(payload);
+            try {
+                message = await interaction.reply({ ...payload, allowedMentions: { repliedUser: false } });
+            } catch (err) {
+                if (player.textChannel) {
+                    message = await player.textChannel.send(payload).catch(() => null);
+                }
+            }
+        } else if (player.textChannel) {
+            message = await player.textChannel.send(payload).catch(() => null);
         }
 
         player.nowPlayingMessage = message;

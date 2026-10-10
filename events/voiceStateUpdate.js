@@ -12,40 +12,61 @@ module.exports = {
     const targetGuildId = settings.auto_join_guild;
     const targetChannelId = settings.auto_join_channel;
 
-    if (!targetGuildId || !targetChannelId) return;
-
     const isBot = newState.member?.id === client.user.id;
-    if (!isBot) return;
 
-    const guild = client.guilds.cache.get(targetGuildId);
-    if (!guild) return;
+    if (isBot && targetGuildId && targetChannelId) {
+      const guild = client.guilds.cache.get(targetGuildId);
+      if (guild) {
+        const targetChannel = guild.channels.cache.get(targetChannelId);
+        if (targetChannel) {
+          const leftChannel = oldState.channelId && !newState.channelId;
+          const movedChannel = newState.channelId && newState.channelId !== targetChannelId;
 
-    const targetChannel = guild.channels.cache.get(targetChannelId);
-    if (!targetChannel) return;
+          if (leftChannel || movedChannel) {
+            console.log(chalk.yellow(`↪ Bot disconnected or moved. Rejoining ${targetChannelId}`));
 
-    const leftChannel = oldState.channelId && !newState.channelId;
-    const movedChannel = newState.channelId && newState.channelId !== targetChannelId;
+            try {
+              const connection = joinVoiceChannel({
+                channelId: targetChannel.id,
+                guildId: guild.id,
+                adapterCreator: guild.voiceAdapterCreator,
+                selfDeaf: false,
+              });
 
-    if (leftChannel || movedChannel) {
+              // Prevent unhandled error event crashes
+              connection.on('error', (err) => {
+                 console.error(chalk.red("🚨 Voice connection error in voiceStateUpdate:"), err.message);
+              });
 
-      console.log(chalk.yellow(`↪ Bot disconnected or moved. Rejoining ${targetChannelId}`));
+              console.log(chalk.green("🔄 Bot rejoined the main channel."));
+            } catch (err) {
+              console.log(chalk.red("❌ Failed to rejoin channel:"), err.message);
+            }
+          }
+        }
+      }
+    }
 
-      try {
-        const connection = joinVoiceChannel({
-          channelId: targetChannel.id,
-          guildId: guild.id,
-          adapterCreator: guild.voiceAdapterCreator,
-          selfDeaf: false,
-        });
+    // Handle music player listener checks (alone / not alone)
+    const guildId = newState.guild?.id || oldState.guild?.id;
+    if (!guildId) return;
 
-        // Prevent unhandled error event crashes
-        connection.on('error', (err) => {
-           console.error(chalk.red("🚨 Voice connection error in voiceStateUpdate:"), err.message);
-        });
+    const player = client.players?.get(guildId);
+    if (!player || !player.voiceChannel) return;
 
-        console.log(chalk.green("🔄 Bot rejoined the main channel."));
-      } catch (err) {
-        console.log(chalk.red("❌ Failed to rejoin channel:"), err.message);
+    const botChannelId = player.voiceChannel.id;
+    if (oldState.channelId === botChannelId || newState.channelId === botChannelId) {
+      const channel = player.guild?.channels?.cache?.get(botChannelId) || player.voiceChannel;
+      const nonBots = channel?.members?.filter(m => !m.user.bot)?.size || 0;
+
+      if (nonBots === 0) {
+        if (player.currentTrack && !player.pauseReasons?.has('alone')) {
+          player.startInactivityTimer('alone');
+        }
+      } else {
+        if (player.pauseReasons?.has('alone')) {
+          player.clearInactivityTimer(true);
+        }
       }
     }
   },
