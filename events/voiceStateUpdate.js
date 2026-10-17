@@ -33,6 +33,7 @@ module.exports = {
                 selfDeaf: false,
               });
 
+              connection.setMaxListeners?.(50);
               // Prevent unhandled error event crashes
               connection.on('error', (err) => {
                  console.error(chalk.red("🚨 Voice connection error in voiceStateUpdate:"), err.message);

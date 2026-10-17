@@ -38,13 +38,14 @@ function cleanErrorReason(reason) {
   return reason;
 }
 
+process.setMaxListeners(100);
+
 // Handle global errors to prevent the process from exiting
 process.on('unhandledRejection', (reason, promise) => {
   const clean = cleanErrorReason(reason);
   if (clean === null) return; // Suppress normal SIGTERM exits
   console.error('Unhandled Rejection at:', promise, 'reason:', clean);
 });
-
 
 process.on('uncaughtException', (error, origin) => {
   console.error(`Caught exception: ${error}\n` + `Exception origin: ${origin}`);
@@ -427,15 +428,7 @@ module.exports = async function runSingleBot(botRow) {
     console.error(chalk.red(`❌ Client error for ${client.config.slug}:`), error);
   });
 
-  process.on('unhandledRejection', (reason, promise) => {
-    const clean = cleanErrorReason(reason);
-    if (clean === null) return; // Suppress normal SIGTERM exits
-    console.error(chalk.red('❌ Unhandled Rejection at:'), promise, 'reason:', clean);
-  });
 
-  process.on('uncaughtException', (error) => {
-    console.error(chalk.red('❌ Uncaught Exception:'), error);
-  });
 
   // READY event — use Events.ClientReady (this is the fix)
   client.once(Events.ClientReady, async () => {
@@ -472,6 +465,7 @@ module.exports = async function runSingleBot(botRow) {
             selfMute: settings.self_mute ?? false,
           });
 
+          connection.setMaxListeners?.(50);
           // Handle connection errors to prevent crash
           connection.on('error', (error) => {
             console.error(chalk.red("🚨 Voice connection error in auto-join:"), error.message);
