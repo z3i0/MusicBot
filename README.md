@@ -132,13 +132,13 @@ sudo apt-get install -y nodejs
 Follow these steps to deploy your orchestrator and establish your multi-bot instances:
 
 ### 1. Clone & Install Core Dependencies
-Clone the repository to your host server and run npm installations:
+Clone the repository to your host server and run pnpm installations:
 ```bash
 # Navigate to the workspace
 cd MusicBot
 
-# Install npm dependencies
-npm install
+# Install dependencies using pnpm
+pnpm install
 ```
 
 ### 2. Configure Your Environment File
@@ -152,7 +152,7 @@ Open `.env` in your editor and configure the parameters (refer to the [Environme
 ### 3. Run Database Migrations
 The orchestrator relies on relational database migrations to create schemas for bots, restricted channels, playlists, and items. Initialize the default SQLite / MySQL schemas using the Sequelize CLI:
 ```bash
-npx sequelize-cli db:migrate
+pnpm exec sequelize-cli db:migrate
 ```
 
 ### 4. Register Bots in the CLI
@@ -168,8 +168,8 @@ node music-cli/index.js
 ### 5. Launch the Orchestrator
 Start the Master Supervisor process to spawn the registered bots:
 ```bash
-# Start via npm script
-npm start
+# Start via pnpm script
+pnpm start
 
 # Or launch index.js directly
 node index.js

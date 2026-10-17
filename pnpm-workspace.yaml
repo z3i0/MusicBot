@@ -1,0 +1,5 @@
+allowBuilds:
+  '@discordjs/opus': true
+  ffmpeg-static: true
+  sqlite3: true
+  youtube-dl-exec: true

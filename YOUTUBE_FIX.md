@@ -73,7 +73,7 @@ COOKIES_FILE=./cookies.txt
 #### Step 5: Restart the Bot
 
 ```bash
-npm start
+pnpm start
 ```
 
 ## Which Method Should I Use?
@@ -93,7 +93,7 @@ npm start
 After completing the setup, test your bot:
 
 ```bash
-npm start
+pnpm start
 ```
 
 Then try playing music in Discord:
