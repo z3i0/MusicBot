@@ -61,7 +61,7 @@ class MusicPlayer {
         this.guild = guild;
         this.textChannel = textChannel;
         this.voiceChannel = voiceChannel;
-        this.botId = botId;
+        this.botId = (botId && botId !== 'default') ? botId : (guild?.client?.config?.slug || botId || 'default');
 
         // Audio player setup
         this.audioPlayer = createAudioPlayer();
@@ -381,6 +381,7 @@ class MusicPlayer {
                 channelId: this.voiceChannel.id,
                 guildId: this.guild.id,
                 adapterCreator: this.guild.voiceAdapterCreator,
+                group: this.botId,
                 selfDeaf: this.selfDeaf,
                 selfMute: this.selfMute,
             });
@@ -455,6 +456,7 @@ class MusicPlayer {
                 channelId: this.voiceChannel.id,
                 guildId: this.guild.id,
                 adapterCreator: this.guild.voiceAdapterCreator,
+                group: this.botId,
                 selfDeaf: this.selfDeaf,
                 selfMute: this.selfMute,
             });

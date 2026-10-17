@@ -1396,7 +1396,8 @@ module.exports = {
         player = new MusicPlayer(
           guild,
           interaction.channel,
-          member.voice.channel
+          member.voice.channel,
+          client.config?.slug
         );
         client.players.set(guild.id, player);
       }

@@ -461,6 +461,7 @@ module.exports = async function runSingleBot(botRow) {
             channelId: channel.id,
             guildId: guild.id,
             adapterCreator: guild.voiceAdapterCreator,
+            group: botRow.slug,
             selfDeaf: settings.self_deaf ?? true,
             selfMute: settings.self_mute ?? false,
           });

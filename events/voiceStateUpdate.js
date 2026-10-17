@@ -30,6 +30,7 @@ module.exports = {
                 channelId: targetChannel.id,
                 guildId: guild.id,
                 adapterCreator: guild.voiceAdapterCreator,
+                group: client.config?.slug || "default",
                 selfDeaf: false,
               });
 
