@@ -683,15 +683,13 @@ class MusicPlayer {
                 }
             }
 
-            // For YouTube, Spotify (via YouTube), SoundCloud (via YouTube) - use youtube-dl-exec
+            // For YouTube, Spotify (via YouTube), SoundCloud (via YouTube) - use high-speed yt-dlp
             if (track.platform === 'youtube' || track.platform === 'spotify' || track.platform === 'soundcloud') {
                 await YouTube.runYtDlp(downloadUrl, {
                     output: filepath,
-                    format: config.ytdl.format || 'bestaudio/best',
+                    format: config.ytdl?.format || '251/250/249/bestaudio[acodec=opus]/ba',
                     preferFreeFormats: true,
-                    postprocessorArgs: {
-                        'ffmpeg': ['-c:a', 'libopus', '-b:a', '128k']
-                    },
+                    concurrentFragments: 5,
                     extractAudio: true,
                     audioFormat: 'opus',
                     ffmpegLocation: ffmpegPath

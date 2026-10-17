@@ -25,6 +25,9 @@ class YouTube {
             // Optimization flags
             noPlaylist: true,
             quiet: true,
+            concurrentFragments: 5,
+            bufferSize: '16M',
+            httpChunkSize: '10M',
             extractorArgs: 'youtube:player_client=ios,android,mweb,web',
             ...extraOptions
         };
