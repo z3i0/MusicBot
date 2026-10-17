@@ -4,7 +4,8 @@ const {
   Collection,
   Events,
   ActivityType,
-  PermissionFlagsBits
+  PermissionFlagsBits,
+  Options
 } = require("discord.js");
 const PlayerStateManager = require("./src/PlayerStateManager");
 const MusicPlayer = require("./src/MusicPlayer");
@@ -70,6 +71,44 @@ module.exports = async function runSingleBot(botRow) {
       GatewayIntentBits.MessageContent,
       GatewayIntentBits.GuildVoiceStates,
     ],
+    // High-performance, low-memory cache settings for multi-bot deployments
+    makeCache: Options.cacheWithLimits({
+      MessageManager: 0, // Music bot doesn't need to retain message history
+      PresenceManager: 0,
+      ReactionManager: 0,
+      ReactionUserManager: 0,
+      ThreadManager: 0,
+      ThreadMemberManager: 0,
+      StageInstanceManager: 0,
+      GuildScheduledEventManager: 0,
+      GuildBanManager: 0,
+      GuildInviteManager: 0,
+      GuildEmojiManager: 0,
+      GuildStickerManager: 0,
+      BaseGuildEmojiManager: 0,
+      AutoModerationRuleManager: 0,
+      ApplicationCommandManager: 0,
+      GuildMemberManager: {
+        maxSize: 50,
+        keepOverLimit: (member) => member.id === client.user?.id,
+      },
+      UserManager: 50,
+    }),
+    sweepers: {
+      ...Options.defaultSweeperSettings,
+      messages: {
+        interval: 180, // Sweep messages every 3 minutes
+        lifetime: 30,  // Discard older than 30s
+      },
+      users: {
+        interval: 600, // Sweep users every 10 min
+        filter: () => (user) => user.id !== client.user?.id,
+      },
+      guildMembers: {
+        interval: 600,
+        filter: () => (member) => member.id !== client.user?.id,
+      },
+    },
   });
 
   async function cleanupAudioCache() {
@@ -255,24 +294,14 @@ module.exports = async function runSingleBot(botRow) {
   );
 
   client.commands = new Collection();
+  client.aliases = new Map();
   client.players = new Collection();
   const MusicEmbedManager = require("./src/MusicEmbedManager");
   client.musicEmbedManager = new MusicEmbedManager(client);
 
-  // Load prefix commands (same as before)
   const prefixCommandsPath = path.join(__dirname, "commands/custom");
-  if (fs.existsSync(prefixCommandsPath)) {
-    const files = fs
-      .readdirSync(prefixCommandsPath)
-      .filter((f) => f.endsWith(".js"));
-    for (const file of files) {
-      const cmd = require(path.join(prefixCommandsPath, file));
-      if (!cmd.name) continue;
-      client.commands.set(cmd.name, cmd);
-    }
-  }
 
-  // Load event handlers (kept your implementation)
+  // Load event handlers & prefix commands
   const loadEvents = () => {
     const eventsPath = path.join(__dirname, "events");
     if (!fs.existsSync(eventsPath)) {
@@ -302,7 +331,6 @@ module.exports = async function runSingleBot(botRow) {
     }
 
     try {
-      client.prefixCommands = new Collection();
       if (fs.existsSync(prefixCommandsPath)) {
         const files = fs
           .readdirSync(prefixCommandsPath)
@@ -311,11 +339,11 @@ module.exports = async function runSingleBot(botRow) {
         for (const file of files) {
           const command = require(path.join(prefixCommandsPath, file));
           if (!command.name) continue;
-          client.prefixCommands.set(command.name, command);
+          client.commands.set(command.name.toLowerCase(), command);
 
           if (command.aliases && Array.isArray(command.aliases)) {
             for (const alias of command.aliases) {
-              client.prefixCommands.set(alias, command);
+              client.aliases.set(alias.toLowerCase(), command);
             }
           }
           console.log(
@@ -323,6 +351,7 @@ module.exports = async function runSingleBot(botRow) {
             }`
           );
         }
+        client.prefixCommands = client.commands;
       }
     } catch (error) {
       console.log(chalk.red("❌ Error loading commands handlers:"), error);
@@ -357,11 +386,7 @@ module.exports = async function runSingleBot(botRow) {
       const commandName = args.shift()?.toLowerCase();
       if (!commandName) return;
 
-      const command =
-        client.commands.get(commandName) ||
-        [...client.commands.values()].find((cmd) =>
-          cmd.aliases?.includes(commandName)
-        );
+      const command = client.commands.get(commandName) || client.aliases.get(commandName);
 
       if (!command) return;
 
@@ -370,15 +395,10 @@ module.exports = async function runSingleBot(botRow) {
         return;
       }
 
-
-
       try {
         await command.execute(message, args, client);
       } catch (err) {
         console.error(err);
-        try {
-          // await message.reply("⚠️ Error executing command.");
-        } catch (replyErr) { }
       }
 
       return;
@@ -387,9 +407,7 @@ module.exports = async function runSingleBot(botRow) {
     // NON-PREFIX ALIASES
     const args = content.split(/\s+/);
     const rawName = args.shift()?.toLowerCase();
-    const command = [...client.commands.values()].find((cmd) =>
-      cmd.aliases?.includes(rawName)
-    );
+    const command = client.aliases.get(rawName) || client.commands.get(rawName);
     if (!command) return;
 
     // Check for send messages permission
@@ -401,9 +419,6 @@ module.exports = async function runSingleBot(botRow) {
       await command.execute(message, args, client);
     } catch (err) {
       console.error(err);
-      try {
-        // await message.reply("⚠️ Error executing command.");
-      } catch (replyErr) { }
     }
   });
 

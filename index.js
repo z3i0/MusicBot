@@ -3,7 +3,9 @@ const path = require("path");
 const { Bot, BotChannel } = require("./models");
 
 async function startBot(botRow) {
-  const worker = fork(path.join(__dirname, "bots/bot-worker.js"));
+  const worker = fork(path.join(__dirname, "bots/bot-worker.js"), [], {
+    execArgv: ["--max-old-space-size=128", "--optimize-for-size"]
+  });
 
   worker.send(botRow.toJSON());
 

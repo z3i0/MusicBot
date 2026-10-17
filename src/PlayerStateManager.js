@@ -15,7 +15,7 @@ class PlayerStateManager {
             fs.mkdirSync(dir, { recursive: true });
         }
         if (!fs.existsSync(this.filePath)) {
-            fs.writeFileSync(this.filePath, JSON.stringify({ bots: {} }, null, 4), 'utf8');
+            fs.writeFileSync(this.filePath, JSON.stringify({ bots: {} }), 'utf8');
         }
     }
 
@@ -48,7 +48,7 @@ class PlayerStateManager {
                 fs.mkdirSync(dir, { recursive: true });
             }
             const tmpFile = `${this.filePath}.tmp.${process.pid}.${Date.now()}`;
-            fs.writeFileSync(tmpFile, JSON.stringify(data, null, 4), 'utf8');
+            fs.writeFileSync(tmpFile, JSON.stringify(data), 'utf8');
             fs.renameSync(tmpFile, this.filePath);
         } catch (error) {
             console.error('❌ Failed to write database:', error.message);

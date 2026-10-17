@@ -129,7 +129,7 @@ class MusicPlayer {
 
         // Persistence management
         this.stateSyncInterval = null;
-        this.stateSyncIntervalMs = 5000;
+        this.stateSyncIntervalMs = 15000;
         this.stateSaveTimeout = null;
 
         // Pause management
@@ -570,17 +570,14 @@ class MusicPlayer {
                 addedTracks.push(track);
             }
 
-            // Immediately preload ALL newly added tracks (before playing)
-            for (const track of addedTracks) {
-                // Skip the first track ONLY if player was idle and this track will start playing immediately
-                const isAboutToPlay = wasIdle && track === addedTracks[0];
-                if (!isAboutToPlay && !this.preloadedStreams.has(track.url)) {
-                    this.preloadTrack(track).catch(err => {
-                        if (err && err.message) {
-                            console.error(`❌ Preload error for ${track.title}:`, err.message);
-                        }
-                    });
-                }
+            // Preload ONLY the next upcoming track (not entire queue) to conserve RAM and CPU
+            const nextTrack = wasIdle ? addedTracks[1] : addedTracks[0];
+            if (nextTrack && !this.preloadedStreams.has(nextTrack.url)) {
+                this.preloadTrack(nextTrack).catch(err => {
+                    if (err && err.message) {
+                        console.error(`❌ Preload error for ${nextTrack.title}:`, err.message);
+                    }
+                });
             }
 
             // Auto-play if not currently playing
@@ -1765,6 +1762,11 @@ class MusicPlayer {
 
                 // Play next track from beginning
                 await this.play(null, 0);
+
+                // Preload the next upcoming track in the queue
+                if (this.queue.length > 0 && !this.preloadedStreams.has(this.queue[0].url)) {
+                    this.preloadTrack(this.queue[0]).catch(() => {});
+                }
 
                 const MusicEmbedManager = require('./MusicEmbedManager');
                 if (this.guild.client.musicEmbedManager) {
